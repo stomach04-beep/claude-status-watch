@@ -1,0 +1,85 @@
+name: "Claude Status Watch (20分おき・障害発生/復旧をLINE通知)"
+
+# Claude（Anthropic）公式ステータスページを20分おきに読み、
+# 障害の「発生」「悪化」「復旧」のときだけ LINE に知らせる。
+# AI呼び出しなし・ログイン不要。状態ファイル(state.json)と履歴CSVは
+# 変化があったときだけこのリポジトリにコミットして持ち越す。
+#
+# 【安全境界】読むのは公開ステータスページだけ。書くのは自分のリポジトリの
+#             state.json / data/incident_log.csv だけ。
+
+on:
+  schedule:
+    # 20分おき（GitHub の schedule は数分〜十数分遅れるのが常態。時刻に意味は持たせない）
+    - cron: "*/20 * * * *"
+  workflow_dispatch:
+    inputs:
+      force_test:
+        description: "配線テスト（状態に関係なくテスト文面を1通LINEに送る）: true/false"
+        required: false
+        default: "false"
+      dry_run:
+        description: "送信せず本文だけログに出す: true/false"
+        required: false
+        default: "false"
+
+# 二重起動しない（前の回が遅れて残っていたら重ねない）
+concurrency:
+  group: claude-status-watch
+  cancel-in-progress: false
+
+# state.json をコミットして戻すので contents: write が要る
+permissions:
+  contents: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONIOENCODING: utf-8
+      TZ: Asia/Tokyo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # 後で git push するのでトークンは残す（このリポジトリには機密ファイルが無い）
+          persist-credentials: true
+
+      # 依存パッケージ無し（標準ライブラリのみ）なので pip install は不要＝毎回20秒で終わる
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: ステータス確認 → 変化があればLINE
+        env:
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          FORCE_TEST: ${{ github.event.inputs.force_test == 'true' && '1' || '0' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+        run: |
+          if [ -z "$LINE_CHANNEL_ACCESS_TOKEN" ] || [ -z "$LINE_USER_ID" ]; then
+            echo "::error::LINE_CHANNEL_ACCESS_TOKEN / LINE_USER_ID が未設定です（通知が飛びません）"
+            exit 1
+          fi
+          python claude_status_watch.py
+
+      # state.json / CSV が変わったときだけコミットして戻す（変化なしの回はコミットしない）
+      - name: 状態ファイルをコミット
+        if: always()
+        run: |
+          git add state.json data/incident_log.csv 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "状態に変化なし（コミットしない）"
+            exit 0
+          fi
+          git config user.name "claude-status-watch[bot]"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "state: $(date '+%Y-%m-%d %H:%M JST')"
+          # 同時に走った別 run と競合したら取り込み直してから push（3回まで）
+          for i in 1 2 3; do
+            git push && exit 0
+            git pull --rebase || true
+          done
+          echo "::warning::state.json の push に失敗（次回の run で再検知されるので致命ではない）"

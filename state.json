@@ -1,0 +1,8 @@
+{
+  "is_down": false,
+  "since": null,
+  "incidents": {},
+  "degraded": [],
+  "fetch_fail": 0,
+  "checked_at": "2026-08-16T22:45:45.195610+00:00"
+}
