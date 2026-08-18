@@ -1,8 +1,27 @@
 {
-  "is_down": false,
-  "since": null,
-  "incidents": {},
-  "degraded": [],
+  "is_down": true,
+  "since": "2026-08-18T16:20:22.231000+00:00",
+  "incidents": {
+    "q7txxvbsftgq": {
+      "name": "Degraded performance for multiple models",
+      "impact": "minor",
+      "status": "investigating",
+      "started": "2026-08-18T16:20:22.231Z",
+      "components": [
+        "claude.ai",
+        "Claude API (api.anthropic.com)",
+        "Claude Code",
+        "Claude Cowork"
+      ],
+      "last_update": "We are investigating elevated errors on requests to Claude Mythos 5, Claude Fable 5, Claude Opus 5, Claude Sonnet 5, Claude Haiku 4.5, and other Claude models. We will provide an update as soon as pos"
+    }
+  },
+  "degraded": [
+    "Claude API (api.anthropic.com)",
+    "Claude Code",
+    "Claude Cowork",
+    "claude.ai"
+  ],
   "fetch_fail": 0,
-  "checked_at": "2026-08-16T22:45:45.195610+00:00"
+  "checked_at": "2026-08-18T16:28:51.843674+00:00"
 }

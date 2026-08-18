@@ -1,0 +1,2 @@
+検知時刻JST,種別,incident_id,件名,影響度,対象,開始JST,所要
+2026-08-19 01:28,発生,q7txxvbsftgq,Degraded performance for multiple models,minor,claude.ai|Claude API (api.anthropic.com)|Claude Code|Claude Cowork,08/19 01:20,
