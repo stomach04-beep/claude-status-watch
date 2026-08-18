@@ -1,22 +1,8 @@
 {
-  "is_down": true,
-  "since": "2026-08-18T16:20:22.231000+00:00",
-  "incidents": {
-    "q7txxvbsftgq": {
-      "name": "Degraded performance for multiple models",
-      "impact": "minor",
-      "status": "monitoring",
-      "started": "2026-08-18T16:20:22.231Z",
-      "components": [
-        "claude.ai",
-        "Claude API (api.anthropic.com)",
-        "Claude Code",
-        "Claude Cowork"
-      ],
-      "last_update": "A fix has been implemented and we are monitoring the results."
-    }
-  },
+  "is_down": false,
+  "since": null,
+  "incidents": {},
   "degraded": [],
   "fetch_fail": 0,
-  "checked_at": "2026-08-18T18:34:48.166823+00:00"
+  "checked_at": "2026-08-18T19:12:09.279645+00:00"
 }
