@@ -2,3 +2,4 @@
 2026-08-19 01:28,発生,q7txxvbsftgq,Degraded performance for multiple models,minor,claude.ai|Claude API (api.anthropic.com)|Claude Code|Claude Cowork,08/19 01:20,
 2026-08-19 04:12,復旧,q7txxvbsftgq,Degraded performance for multiple models,,,08/19 01:20,2時間51分
 2026-08-19 18:52,発生,hkcw95k7r0f4,Degraded performance for Claude Opus 5 and Claude Haiku 4.5,minor,claude.ai|Claude API (api.anthropic.com)|Claude Code|Claude Cowork,08/19 18:42,
+2026-08-19 20:33,復旧,hkcw95k7r0f4,Degraded performance for Claude Opus 5 and Claude Haiku 4.5,,,08/19 18:42,1時間50分
