@@ -1,8 +1,27 @@
 {
-  "is_down": false,
-  "since": null,
-  "incidents": {},
-  "degraded": [],
+  "is_down": true,
+  "since": "2026-08-19T09:42:37.402000+00:00",
+  "incidents": {
+    "hkcw95k7r0f4": {
+      "name": "Degraded performance for Claude Opus 5 and Claude Haiku 4.5",
+      "impact": "minor",
+      "status": "identified",
+      "started": "2026-08-19T09:42:37.402Z",
+      "components": [
+        "claude.ai",
+        "Claude API (api.anthropic.com)",
+        "Claude Code",
+        "Claude Cowork"
+      ],
+      "last_update": "We have identified the cause of elevated errors on requests to Claude Opus 5 and Claude Haiku 4.5 and are working on a fix. We will provide an update as soon as possible."
+    }
+  },
+  "degraded": [
+    "Claude API (api.anthropic.com)",
+    "Claude Code",
+    "Claude Cowork",
+    "claude.ai"
+  ],
   "fetch_fail": 0,
-  "checked_at": "2026-08-19T09:08:09.960766+00:00"
+  "checked_at": "2026-08-19T09:52:10.616325+00:00"
 }
