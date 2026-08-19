@@ -5,7 +5,7 @@
     "hkcw95k7r0f4": {
       "name": "Degraded performance for Claude Opus 5 and Claude Haiku 4.5",
       "impact": "minor",
-      "status": "identified",
+      "status": "monitoring",
       "started": "2026-08-19T09:42:37.402Z",
       "components": [
         "claude.ai",
@@ -13,15 +13,10 @@
         "Claude Code",
         "Claude Cowork"
       ],
-      "last_update": "We have identified the cause of elevated errors on requests to Claude Opus 5 and Claude Haiku 4.5 and are working on a fix. We will provide an update as soon as possible."
+      "last_update": "A fix has been implemented and we are monitoring the results."
     }
   },
-  "degraded": [
-    "Claude API (api.anthropic.com)",
-    "Claude Code",
-    "Claude Cowork",
-    "claude.ai"
-  ],
+  "degraded": [],
   "fetch_fail": 0,
-  "checked_at": "2026-08-19T10:25:50.789818+00:00"
+  "checked_at": "2026-08-19T10:59:07.835330+00:00"
 }
