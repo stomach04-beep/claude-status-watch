@@ -1,27 +1,8 @@
 {
-  "is_down": true,
-  "since": "2026-08-20T18:32:13.285000+00:00",
-  "incidents": {
-    "c0ncxxm2wd9r": {
-      "name": "Elevated errors on requests to multiple models",
-      "impact": "major",
-      "status": "investigating",
-      "started": "2026-08-20T19:16:24.923Z",
-      "components": [
-        "claude.ai",
-        "Claude API (api.anthropic.com)",
-        "Claude Code",
-        "Claude Cowork"
-      ],
-      "last_update": "We are investigating elevated errors on requests to some Claude models. We will provide additional updates as soon as possible."
-    }
-  },
-  "degraded": [
-    "Claude API (api.anthropic.com)",
-    "Claude Code",
-    "Claude Cowork",
-    "claude.ai"
-  ],
+  "is_down": false,
+  "since": null,
+  "incidents": {},
+  "degraded": [],
   "fetch_fail": 0,
-  "checked_at": "2026-08-20T19:28:59.296329+00:00"
+  "checked_at": "2026-08-20T19:59:39.722692+00:00"
 }
