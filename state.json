@@ -2,18 +2,18 @@
   "is_down": true,
   "since": "2026-08-20T18:32:13.285000+00:00",
   "incidents": {
-    "6xskhw7rn4tf": {
-      "name": "Elevated errors on Google connectors",
-      "impact": "minor",
+    "c0ncxxm2wd9r": {
+      "name": "Elevated errors on requests to multiple models",
+      "impact": "major",
       "status": "investigating",
-      "started": "2026-08-20T18:32:13.285Z",
+      "started": "2026-08-20T19:16:24.923Z",
       "components": [
         "claude.ai",
         "Claude API (api.anthropic.com)",
         "Claude Code",
         "Claude Cowork"
       ],
-      "last_update": "We are investigating elevated errors affecting Google connectors (Sheets, Docs, Slides, and Chat) and custom Google integrations on Claude.ai. Core functionality is not affected. We will provide an up"
+      "last_update": "We are investigating elevated errors on requests to some Claude models. We will provide additional updates as soon as possible."
     }
   },
   "degraded": [
@@ -23,5 +23,5 @@
     "claude.ai"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-08-20T18:52:54.312091+00:00"
+  "checked_at": "2026-08-20T19:28:59.296329+00:00"
 }
