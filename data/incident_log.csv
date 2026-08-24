@@ -6,3 +6,4 @@
 2026-08-21 03:52,発生,6xskhw7rn4tf,Elevated errors on Google connectors,minor,claude.ai|Claude API (api.anthropic.com)|Claude Code|Claude Cowork,08/21 03:32,
 2026-08-21 04:28,発生,c0ncxxm2wd9r,Elevated errors on requests to multiple models,major,claude.ai|Claude API (api.anthropic.com)|Claude Code|Claude Cowork,08/21 04:16,
 2026-08-21 04:59,復旧,c0ncxxm2wd9r,Elevated errors on requests to multiple models,,,08/21 03:32,1時間27分
+2026-08-24 14:23,発生,vgz5psbjmt1h,Elevated errors for multiple models,major,claude.ai|Claude API (api.anthropic.com)|Claude Code|Claude Cowork,08/24 14:06,
