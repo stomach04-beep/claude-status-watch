@@ -1,27 +1,8 @@
 {
-  "is_down": true,
-  "since": "2026-08-24T05:06:39.483000+00:00",
-  "incidents": {
-    "vgz5psbjmt1h": {
-      "name": "Elevated errors for multiple models",
-      "impact": "major",
-      "status": "identified",
-      "started": "2026-08-24T05:06:39.483Z",
-      "components": [
-        "claude.ai",
-        "Claude API (api.anthropic.com)",
-        "Claude Code",
-        "Claude Cowork"
-      ],
-      "last_update": "At this time, we have seen errors stabilize on Opus 5 and Fable 5, and are working to fully resolve success rates on all affected models. We will provide an update as soon as possible."
-    }
-  },
-  "degraded": [
-    "Claude API (api.anthropic.com)",
-    "Claude Code",
-    "Claude Cowork",
-    "claude.ai"
-  ],
+  "is_down": false,
+  "since": null,
+  "incidents": {},
+  "degraded": [],
   "fetch_fail": 0,
-  "checked_at": "2026-08-24T08:23:55.728865+00:00"
+  "checked_at": "2026-08-24T09:28:16.806210+00:00"
 }
