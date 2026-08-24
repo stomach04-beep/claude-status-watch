@@ -13,7 +13,7 @@
         "Claude Code",
         "Claude Cowork"
       ],
-      "last_update": "We have identified the cause of elevated errors on requests to Claude Mythos 5, Claude Fable 5, Claude Opus 5, and other Claude models and are working on a fix. We will provide an update as soon as po"
+      "last_update": "We are continuing to work to resolve issues causing elevated requests on multiple models. We will provide an update as soon as possible."
     }
   },
   "degraded": [
@@ -23,5 +23,5 @@
     "claude.ai"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-08-24T06:06:53.912967+00:00"
+  "checked_at": "2026-08-24T07:31:35.452390+00:00"
 }
