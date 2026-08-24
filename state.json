@@ -5,7 +5,7 @@
     "vgz5psbjmt1h": {
       "name": "Elevated errors for multiple models",
       "impact": "major",
-      "status": "investigating",
+      "status": "identified",
       "started": "2026-08-24T05:06:39.483Z",
       "components": [
         "claude.ai",
@@ -13,7 +13,7 @@
         "Claude Code",
         "Claude Cowork"
       ],
-      "last_update": "We are investigating elevated errors on requests to Claude Mythos 5, Claude Fable 5, Claude Opus 5, and Claude Opus 4.8. We will provide an update as soon as possible."
+      "last_update": "We have identified the cause of elevated errors on requests to Claude Mythos 5, Claude Fable 5, Claude Opus 5, and other Claude models and are working on a fix. We will provide an update as soon as po"
     }
   },
   "degraded": [
@@ -23,5 +23,5 @@
     "claude.ai"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-08-24T05:23:17.910880+00:00"
+  "checked_at": "2026-08-24T06:06:53.912967+00:00"
 }
