@@ -1,21 +1,8 @@
 {
-  "is_down": true,
-  "since": "2026-09-01T23:26:48.984000+00:00",
-  "incidents": {
-    "620swtqyn24k": {
-      "name": "Delays in credit purchases",
-      "impact": "minor",
-      "status": "monitoring",
-      "started": "2026-09-01T23:26:48.984Z",
-      "components": [
-        "Claude Console (platform.claude.com)"
-      ],
-      "last_update": "We have identified and resolved an issue where users who reached a balance of zero usage credits saw delays in the availability of newly purchased credits, resulting in some requests to the Claude API"
-    }
-  },
-  "degraded": [
-    "Claude Console (platform.claude.com)"
-  ],
+  "is_down": false,
+  "since": null,
+  "incidents": {},
+  "degraded": [],
   "fetch_fail": 0,
-  "checked_at": "2026-09-02T01:22:19.393389+00:00"
+  "checked_at": "2026-09-02T06:23:20.598467+00:00"
 }

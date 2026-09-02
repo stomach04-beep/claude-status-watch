@@ -9,3 +9,4 @@
 2026-08-24 14:23,発生,vgz5psbjmt1h,Elevated errors for multiple models,major,claude.ai|Claude API (api.anthropic.com)|Claude Code|Claude Cowork,08/24 14:06,
 2026-08-24 18:28,復旧,vgz5psbjmt1h,Elevated errors for multiple models,,,08/24 14:06,4時間21分
 2026-09-02 10:22,発生,620swtqyn24k,Delays in credit purchases,minor,Claude Console (platform.claude.com),09/02 08:26,
+2026-09-02 15:23,復旧,620swtqyn24k,Delays in credit purchases,,,09/02 08:26,6時間56分
