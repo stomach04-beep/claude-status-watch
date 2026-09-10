@@ -1,8 +1,21 @@
 {
-  "is_down": false,
-  "since": null,
-  "incidents": {},
-  "degraded": [],
+  "is_down": true,
+  "since": "2026-09-10T15:54:10+00:00",
+  "incidents": {
+    "r1pqn1kb4hvk": {
+      "name": "Degraded functionality for Claude Cowork on Windows",
+      "impact": "minor",
+      "status": "identified",
+      "started": "2026-09-10T15:54:10.000Z",
+      "components": [
+        "Claude Cowork"
+      ],
+      "last_update": "A Windows update released September 8 has left Claude Cowork on Windows unable to run local commands, because its workspace can no longer reach your computer's drive. For most users, chat and file rea"
+    }
+  },
+  "degraded": [
+    "Claude Cowork"
+  ],
   "fetch_fail": 0,
-  "checked_at": "2026-09-10T15:50:36.659734+00:00"
+  "checked_at": "2026-09-10T18:56:24.592885+00:00"
 }
