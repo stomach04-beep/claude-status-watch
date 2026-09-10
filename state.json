@@ -2,6 +2,17 @@
   "is_down": true,
   "since": "2026-09-10T15:54:10+00:00",
   "incidents": {
+    "2pt83vlkk7x7": {
+      "name": "Elevated latency on the Claude API for some users",
+      "impact": "minor",
+      "status": "identified",
+      "started": "2026-09-10T21:43:40.209Z",
+      "components": [
+        "Claude API (api.anthropic.com)",
+        "Claude Cowork"
+      ],
+      "last_update": "We are experiencing slower than normal response times on the Claude API for some customers whose traffic enters through the US Midwest. Users may experience elevated latency and some request timeouts."
+    },
     "r1pqn1kb4hvk": {
       "name": "Degraded functionality for Claude Cowork on Windows",
       "impact": "minor",
@@ -14,8 +25,9 @@
     }
   },
   "degraded": [
+    "Claude API (api.anthropic.com)",
     "Claude Cowork"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-09-10T21:29:08.572146+00:00"
+  "checked_at": "2026-09-10T23:22:41.250766+00:00"
 }
