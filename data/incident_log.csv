@@ -12,3 +12,4 @@
 2026-09-02 15:23,復旧,620swtqyn24k,Delays in credit purchases,,,09/02 08:26,6時間56分
 2026-09-11 03:56,発生,r1pqn1kb4hvk,Degraded functionality for Claude Cowork on Windows,minor,Claude Cowork,09/11 00:54,
 2026-09-11 08:22,発生,2pt83vlkk7x7,Elevated latency on the Claude API for some users,minor,Claude API (api.anthropic.com)|Claude Cowork,09/11 06:43,
+2026-09-12 00:52,悪化,r1pqn1kb4hvk,Degraded functionality for Claude Cowork on Windows,major,Claude Cowork,09/11 00:54,

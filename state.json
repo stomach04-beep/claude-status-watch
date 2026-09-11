@@ -4,7 +4,7 @@
   "incidents": {
     "r1pqn1kb4hvk": {
       "name": "Degraded functionality for Claude Cowork on Windows",
-      "impact": "minor",
+      "impact": "major",
       "status": "identified",
       "started": "2026-09-10T15:54:10.000Z",
       "components": [
@@ -17,5 +17,5 @@
     "Claude Cowork"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-09-11T11:47:23.995544+00:00"
+  "checked_at": "2026-09-11T15:52:07.415390+00:00"
 }
