@@ -1,0 +1,100 @@
+name: "App Heartbeat Watch (毎時・買い時アラートアプリの停止をLINE通知)"
+
+# Android「買い時アラート」(EtfBuyAlert) が毎時 Notion に書く「アプリ最終同期」を見て、
+# 5時間以上途切れたら LINE で知らせる（復帰も1回知らせる）。
+# 2026-09-13 に自宅PCのタスク StockLadderWatch から移設した。PCが寝ている間は見張れず、
+# 平日の東京場中に動けていたのは約36%だった。
+#
+# 【安全境界】このリポジトリは公開。価格・銘柄・建玉は扱わず、ログにも出さない。
+#             読むのは Notion の生存監視行1行だけ。書くのは app_heartbeat/state.json だけ。
+# AI呼び出しなし・依存パッケージなし（標準ライブラリのみ）。
+# 状態(app_heartbeat/state.json)は変化したとき（停止を通知した・復帰した）だけコミットする。
+
+on:
+  schedule:
+    # 毎時25分（アプリの同期は毎時0分。GitHub の schedule は数分〜十数分遅れるのが常態）
+    - cron: "25 * * * *"
+  workflow_dispatch:
+    inputs:
+      test_stale:
+        description: "動作テスト: 何時間停止しているように見せるか（空なら通常。テスト通知には🧪が付き、stateは更新しない）"
+        required: false
+        default: ""
+      dry_run:
+        description: "送信せず本文だけログに出す: true/false"
+        required: false
+        default: "false"
+
+# 二重起動しない（前の回が遅れて残っていたら重ねない）
+concurrency:
+  group: app-heartbeat-watch
+  cancel-in-progress: false
+
+# state.json をコミットして戻すので contents: write が要る
+permissions:
+  contents: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONIOENCODING: utf-8
+      TZ: Asia/Tokyo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # 後で git push するのでトークンは残す（このリポジトリには機密ファイルが無く、pip install もしない）
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: アプリの最終同期を確認 → 途切れていればLINE
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          TEST_STALE: ${{ github.event.inputs.test_stale }}
+          DRY_RUN: ${{ github.event.inputs.dry_run }}
+        run: |
+          if [ -z "$NOTION_TOKEN" ] || [ -z "$LINE_CHANNEL_ACCESS_TOKEN" ] || [ -z "$LINE_USER_ID" ]; then
+            echo "::error::NOTION_TOKEN / LINE_CHANNEL_ACCESS_TOKEN / LINE_USER_ID のいずれかが未設定です（見張れません）"
+            exit 1
+          fi
+          # 引数は配列で組み立てる（入力値をそのまま展開しない）
+          ARGS=()
+          if [ -n "$TEST_STALE" ]; then
+            if ! [[ "$TEST_STALE" =~ ^[0-9]+(\.[0-9]+)?$ ]]; then
+              echo "::error::test_stale は数値で指定してください"
+              exit 1
+            fi
+            ARGS+=(--test-stale "$TEST_STALE")
+          fi
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS+=(--dry-run)
+          fi
+          python -X utf8 app_heartbeat/app_heartbeat_watch.py "${ARGS[@]}"
+
+      # state.json が変わったときだけコミットして戻す（変化なしの回はコミットしない）
+      - name: 状態ファイルをコミット
+        if: always()
+        run: |
+          git add app_heartbeat/state.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "状態に変化なし（コミットしない）"
+            exit 0
+          fi
+          git config user.name "app-heartbeat-watch[bot]"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "heartbeat state: $(date '+%Y-%m-%d %H:%M JST')"
+          # 同時に走った別 run（Claude Status Watch の state コミット）と競合したら取り込み直してから push（3回まで）
+          for i in 1 2 3; do
+            git push && exit 0
+            git pull --rebase || true
+          done
+          echo "::error::app_heartbeat/state.json の push に失敗（次回、停止通知が重複する恐れ）"
+          exit 1
