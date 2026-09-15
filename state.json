@@ -1,8 +1,27 @@
 {
-  "is_down": false,
-  "since": null,
-  "incidents": {},
-  "degraded": [],
+  "is_down": true,
+  "since": "2026-09-15T09:48:23.066000+00:00",
+  "incidents": {
+    "6304r9jjhj34": {
+      "name": "Intermittent error spikes for Claude Mythos 5.1 and Claude Fable 5.1",
+      "impact": "major",
+      "status": "monitoring",
+      "started": "2026-09-15T09:48:23.066Z",
+      "components": [
+        "claude.ai",
+        "Claude API (api.anthropic.com)",
+        "Claude Code",
+        "Claude Cowork"
+      ],
+      "last_update": "A fix has been deployed for Claude Mythos 5.1 and Claude Fable 5.1 and we are monitoring to ensure it has resolved the issue."
+    }
+  },
+  "degraded": [
+    "Claude API (api.anthropic.com)",
+    "Claude Code",
+    "Claude Cowork",
+    "claude.ai"
+  ],
   "fetch_fail": 0,
-  "checked_at": "2026-09-15T05:48:35.858748+00:00"
+  "checked_at": "2026-09-15T11:05:13.274124+00:00"
 }

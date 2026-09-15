@@ -14,3 +14,4 @@
 2026-09-11 08:22,発生,2pt83vlkk7x7,Elevated latency on the Claude API for some users,minor,Claude API (api.anthropic.com)|Claude Cowork,09/11 06:43,
 2026-09-12 00:52,悪化,r1pqn1kb4hvk,Degraded functionality for Claude Cowork on Windows,major,Claude Cowork,09/11 00:54,
 2026-09-15 07:15,復旧,r1pqn1kb4hvk,Degraded functionality for Claude Cowork on Windows,,,09/11 00:54,102時間21分
+2026-09-15 20:05,発生,6304r9jjhj34,Intermittent error spikes for Claude Mythos 5.1 and Claude Fable 5.1,major,claude.ai|Claude API (api.anthropic.com)|Claude Code|Claude Cowork,09/15 18:48,
