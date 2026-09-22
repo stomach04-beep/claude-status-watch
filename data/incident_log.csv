@@ -17,3 +17,4 @@
 2026-09-15 20:05,発生,6304r9jjhj34,Intermittent error spikes for Claude Mythos 5.1 and Claude Fable 5.1,major,claude.ai|Claude API (api.anthropic.com)|Claude Code|Claude Cowork,09/15 18:48,
 2026-09-16 00:35,復旧,6304r9jjhj34,Intermittent error spikes for Claude Mythos 5.1 and Claude Fable 5.1,,,09/15 18:48,5時間47分
 2026-09-22 10:07,発生,7g1qpkyz5gxh,Elevated errors for multiple models,major,claude.ai|Claude API (api.anthropic.com)|Claude Code|Claude Cowork,09/22 09:57,
+2026-09-22 15:19,復旧,7g1qpkyz5gxh,Elevated errors for multiple models,,,09/22 09:57,5時間21分
