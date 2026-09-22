@@ -1,8 +1,27 @@
 {
-  "is_down": false,
-  "since": null,
-  "incidents": {},
-  "degraded": [],
+  "is_down": true,
+  "since": "2026-09-22T00:57:26.117000+00:00",
+  "incidents": {
+    "7g1qpkyz5gxh": {
+      "name": "Elevated errors for multiple models",
+      "impact": "major",
+      "status": "investigating",
+      "started": "2026-09-22T00:57:26.117Z",
+      "components": [
+        "claude.ai",
+        "Claude API (api.anthropic.com)",
+        "Claude Code",
+        "Claude Cowork"
+      ],
+      "last_update": "We are investigating elevated errors on requests to Claude Mythos 5.1, Claude Fable 5.1, and Claude Opus 5. We will provide an update as soon as possible."
+    }
+  },
+  "degraded": [
+    "Claude API (api.anthropic.com)",
+    "Claude Code",
+    "Claude Cowork",
+    "claude.ai"
+  ],
   "fetch_fail": 0,
-  "checked_at": "2026-09-21T22:26:34.024323+00:00"
+  "checked_at": "2026-09-22T01:07:03.709053+00:00"
 }
