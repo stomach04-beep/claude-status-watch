@@ -1,8 +1,29 @@
 {
-  "is_down": false,
-  "since": null,
-  "incidents": {},
-  "degraded": [],
+  "is_down": true,
+  "since": "2026-09-29T14:21:37.180000+00:00",
+  "incidents": {
+    "4xvtc2gnq73l": {
+      "name": "Elevated errors on claude.ai, Claude Code, Claude Cowork and the Claude API",
+      "impact": "major",
+      "status": "monitoring",
+      "started": "2026-09-29T14:21:37.180Z",
+      "components": [
+        "claude.ai",
+        "Claude Console (platform.claude.com)",
+        "Claude API (api.anthropic.com)",
+        "Claude Code",
+        "Claude Cowork"
+      ],
+      "last_update": "Most services have recovered as of 14:59 UTC. Signing in, starting new chats, voice conversations, Claude Code and Cowork sessions, purchases and file uploads are working again. Some messages sent bet"
+    }
+  },
+  "degraded": [
+    "Claude API (api.anthropic.com)",
+    "Claude Code",
+    "Claude Console (platform.claude.com)",
+    "Claude Cowork",
+    "claude.ai"
+  ],
   "fetch_fail": 0,
-  "checked_at": "2026-09-29T08:40:48.293985+00:00"
+  "checked_at": "2026-09-29T15:21:22.094973+00:00"
 }
