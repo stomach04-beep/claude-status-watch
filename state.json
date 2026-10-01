@@ -1,20 +1,8 @@
 {
-  "is_down": true,
-  "since": "2026-10-01T16:20:40.767000+00:00",
-  "incidents": {
-    "k0h22tsvnydg": {
-      "name": "Delayed credits on the Claude Platform",
-      "impact": "minor",
-      "status": "monitoring",
-      "started": "2026-10-01T16:20:40.767Z",
-      "components": [
-        "Claude Console (platform.claude.com)",
-        "Claude API (api.anthropic.com)"
-      ],
-      "last_update": "We have resolved the issue causing delays in credits being applied after purchase. We are monitoring closely to ensure no further issues."
-    }
-  },
+  "is_down": false,
+  "since": null,
+  "incidents": {},
   "degraded": [],
   "fetch_fail": 0,
-  "checked_at": "2026-10-01T19:16:15.554033+00:00"
+  "checked_at": "2026-10-01T23:14:52.837074+00:00"
 }
