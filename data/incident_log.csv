@@ -20,3 +20,4 @@
 2026-09-22 15:19,復旧,7g1qpkyz5gxh,Elevated errors for multiple models,,,09/22 09:57,5時間21分
 2026-09-30 00:21,発生,4xvtc2gnq73l,"Elevated errors on claude.ai, Claude Code, Claude Cowork and the Claude API",major,claude.ai|Claude Console (platform.claude.com)|Claude API (api.anthropic.com)|Claude Code|Claude Cowork,09/29 23:21,
 2026-09-30 05:11,復旧,4xvtc2gnq73l,"Elevated errors on claude.ai, Claude Code, Claude Cowork and the Claude API",,,09/29 23:21,5時間50分
+2026-10-02 04:16,発生,k0h22tsvnydg,Delayed credits on the Claude Platform,minor,Claude Console (platform.claude.com)|Claude API (api.anthropic.com),10/02 01:20,
