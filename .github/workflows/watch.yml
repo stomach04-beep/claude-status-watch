@@ -54,8 +54,9 @@ jobs:
 
       - name: ステータス確認 → 変化があればLINE
         env:
-          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
-          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          # 宛先は🔧システム見張りアカウント（2026-10-07 LINEを4アカウントに分けた。専用の Secret が空なら共通の Secret で送る）
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_TOKEN_SYSTEM || secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID_SYSTEM || secrets.LINE_USER_ID }}
           FORCE_TEST: ${{ github.event.inputs.force_test == 'true' && '1' || '0' }}
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
         run: |
