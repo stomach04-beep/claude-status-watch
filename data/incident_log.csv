@@ -24,3 +24,4 @@
 2026-10-02 08:14,復旧,k0h22tsvnydg,Delayed credits on the Claude Platform,,,10/02 01:20,6時間54分
 2026-10-07 11:27,発生,wf2v8ms031sx,Elevated errors loading usage data on platform.claude.com,major,Claude Console (platform.claude.com),10/07 10:20,
 2026-10-07 18:12,復旧,wf2v8ms031sx,Elevated errors loading usage data on platform.claude.com,,,10/07 10:20,7時間52分
+2026-10-08 01:36,発生,978mjkgw6mh7,Elevated errors on platform.claude.com,major,Claude Console (platform.claude.com),10/07 22:25,

@@ -1,8 +1,21 @@
 {
-  "is_down": false,
-  "since": null,
-  "incidents": {},
-  "degraded": [],
+  "is_down": true,
+  "since": "2026-10-07T13:25:04.155000+00:00",
+  "incidents": {
+    "978mjkgw6mh7": {
+      "name": "Elevated errors on platform.claude.com",
+      "impact": "major",
+      "status": "investigating",
+      "started": "2026-10-07T13:25:04.155Z",
+      "components": [
+        "Claude Console (platform.claude.com)"
+      ],
+      "last_update": "We are investigating elevated errors affecting usage data on the platform.claude.com Usage page and the Admin API usage report. Core functionality is not affected. We will provide an update as soon as"
+    }
+  },
+  "degraded": [
+    "Claude Console (platform.claude.com)"
+  ],
   "fetch_fail": 0,
-  "checked_at": "2026-10-07T09:12:38.281212+00:00"
+  "checked_at": "2026-10-07T16:36:27.377321+00:00"
 }
