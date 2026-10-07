@@ -56,8 +56,9 @@ jobs:
       - name: アプリの最終同期を確認 → 途切れていればLINE
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_CHANNEL_ACCESS_TOKEN }}
-          LINE_USER_ID: ${{ secrets.LINE_USER_ID }}
+          # 宛先は🔧システム見張りアカウント（2026-10-07 LINEを4アカウントに分けた。専用の Secret が空なら共通の Secret で送る）
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_TOKEN_SYSTEM || secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID_SYSTEM || secrets.LINE_USER_ID }}
           TEST_STALE: ${{ github.event.inputs.test_stale }}
           DRY_RUN: ${{ github.event.inputs.dry_run }}
         run: |
