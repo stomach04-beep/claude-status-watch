@@ -1,21 +1,8 @@
 {
-  "is_down": true,
-  "since": "2026-10-07T01:20:26.673000+00:00",
-  "incidents": {
-    "wf2v8ms031sx": {
-      "name": "Elevated errors loading usage data on platform.claude.com",
-      "impact": "major",
-      "status": "investigating",
-      "started": "2026-10-07T01:20:26.673Z",
-      "components": [
-        "Claude Console (platform.claude.com)"
-      ],
-      "last_update": "We are investigating elevated errors loading usage data on the platform.claude.com Usage page and the Admin API usage report endpoint since 5 PM PT. Messages API requests are not affected. We will pro"
-    }
-  },
-  "degraded": [
-    "Claude Console (platform.claude.com)"
-  ],
+  "is_down": false,
+  "since": null,
+  "incidents": {},
+  "degraded": [],
   "fetch_fail": 0,
-  "checked_at": "2026-10-07T02:27:11.595902+00:00"
+  "checked_at": "2026-10-07T09:12:38.281212+00:00"
 }
