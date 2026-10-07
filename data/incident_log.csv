@@ -22,3 +22,4 @@
 2026-09-30 05:11,復旧,4xvtc2gnq73l,"Elevated errors on claude.ai, Claude Code, Claude Cowork and the Claude API",,,09/29 23:21,5時間50分
 2026-10-02 04:16,発生,k0h22tsvnydg,Delayed credits on the Claude Platform,minor,Claude Console (platform.claude.com)|Claude API (api.anthropic.com),10/02 01:20,
 2026-10-02 08:14,復旧,k0h22tsvnydg,Delayed credits on the Claude Platform,,,10/02 01:20,6時間54分
+2026-10-07 11:27,発生,wf2v8ms031sx,Elevated errors loading usage data on platform.claude.com,major,Claude Console (platform.claude.com),10/07 10:20,
