@@ -5,17 +5,17 @@
     "978mjkgw6mh7": {
       "name": "Elevated errors on platform.claude.com",
       "impact": "major",
-      "status": "identified",
+      "status": "monitoring",
       "started": "2026-10-07T13:25:04.155Z",
       "components": [
         "Claude Console (platform.claude.com)"
       ],
-      "last_update": "We've identified the cause of errors loading usage data. The Admin API usage report has recovered, and fixes for the platform.claude.com Usage and Rate limits pages are in progress. The most recent 30"
+      "last_update": "We've mitigated the errors loading usage data on platform.claude.com and in the Admin API usage report. While we work on a full fix, the most recent ~30 minutes of usage may take longer to appear on t"
     }
   },
   "degraded": [
     "Claude Console (platform.claude.com)"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-10-07T21:32:43.665277+00:00"
+  "checked_at": "2026-10-08T01:16:44.733653+00:00"
 }
