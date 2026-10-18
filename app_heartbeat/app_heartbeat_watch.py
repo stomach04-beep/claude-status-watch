@@ -114,6 +114,25 @@ def _post_json(url: str, headers: dict, body: dict, timeout: int) -> tuple[int, 
         return e.code, e.read().decode("utf-8", "replace")
 
 
+def _line_messages(text, route):
+    """LINE の messages：文章＋共通のカード（色の帯・横線）。line_flex.py は claud-code の line-accounts/line_flex.py の写し
+    （2026-10-19）。部品が読めない・カードが大きすぎるときは文章だけ（通知そのものは落とさない）"""
+    import os as _os
+    import sys as _sys
+    d = _os.path.dirname(_os.path.abspath(__file__))
+    for _ in range(3):
+        if _os.path.isfile(_os.path.join(d, "line_flex.py")):
+            if d not in _sys.path:
+                _sys.path.insert(0, d)
+            break
+        d = _os.path.dirname(d)
+    try:
+        import line_flex
+        return line_flex.messages(text, route)
+    except Exception:  # noqa: BLE001
+        return [{"type": "text", "text": str(text)[:4800]}]
+
+
 def send_line(env: dict, text: str, dry_run: bool = False,
               test_mode: bool = False) -> bool:
     # テスト送信は本物と見分けが付くようにする（紛らわしい通知は事故のもと）
@@ -130,7 +149,7 @@ def send_line(env: dict, text: str, dry_run: bool = False,
         _log("LINE_CHANNEL_ACCESS_TOKEN / LINE_USER_ID が無いため送信スキップ")
         return False
     headers = {"Authorization": f"Bearer {token}", "Content-Type": "application/json"}
-    body = {"to": user_id, "messages": [{"type": "text", "text": text[:4800]}]}
+    body = {"to": user_id, "messages": _line_messages(text[:4800], "SYSTEM")}
     try:
         code, _ = _post_json(LINE_PUSH_URL, headers, body, LINE_TIMEOUT_SEC)
     except Exception as e:                                       # noqa: BLE001

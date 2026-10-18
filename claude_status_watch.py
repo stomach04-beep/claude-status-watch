@@ -296,6 +296,25 @@ def log_rows(prev: dict, new_state: dict, now: datetime) -> list[list[str]]:
 # ─────────────────────────────────────────────
 # 5) LINE 送信（戻り値を必ず見る＝虚偽ログ防止）
 # ─────────────────────────────────────────────
+def _line_messages(text, route):
+    """LINE の messages：文章＋共通のカード（色の帯・横線）。line_flex.py は claud-code の line-accounts/line_flex.py の写し
+    （2026-10-19）。部品が読めない・カードが大きすぎるときは文章だけ（通知そのものは落とさない）"""
+    import os as _os
+    import sys as _sys
+    d = _os.path.dirname(_os.path.abspath(__file__))
+    for _ in range(3):
+        if _os.path.isfile(_os.path.join(d, "line_flex.py")):
+            if d not in _sys.path:
+                _sys.path.insert(0, d)
+            break
+        d = _os.path.dirname(d)
+    try:
+        import line_flex
+        return line_flex.messages(text, route)
+    except Exception:  # noqa: BLE001
+        return [{"type": "text", "text": str(text)[:4800]}]
+
+
 def send_line(text: str) -> bool:
     """LINE Messaging API に push。成功なら True。DRY_RUN や未設定なら本文を出して False"""
     token = _clean_secret(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"))
@@ -304,7 +323,7 @@ def send_line(text: str) -> bool:
         why = "DRY_RUN" if os.environ.get("DRY_RUN") == "1" else "LINE secrets 未設定"
         log(f"（{why}のため送信せず）本文↓\n{text}")
         return False
-    payload = json.dumps({"to": user_id, "messages": [{"type": "text", "text": text[:4800]}]}).encode("utf-8")
+    payload = json.dumps({"to": user_id, "messages": _line_messages(text[:4800], "SYSTEM")}).encode("utf-8")
     req = urllib.request.Request(
         LINE_API_URL, data=payload, method="POST",
         headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
