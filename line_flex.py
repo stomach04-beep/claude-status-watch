@@ -10,8 +10,8 @@
   ④ 注記     … 小さい灰色の字（「模擬・注文なし」など）
 札（level）と色は送り手が判定して渡す（ここでは判定し直さない＝同じ判定を2か所に書かない）。
 
-送り方：文章（検索・コピー用）と Flex を1回の push に2つ入れる＝送信数は1通のまま。
-Flex の形式で断られた（HTTP 400）ときだけ文章だけで送り直す。通知一覧に出る altText は文章の1行目と同じにする。
+送り方：カードだけを送る（2026-10-19 ユーザー「通知はカードだけでいい」）。カードの形式で断られた（HTTP 400）ときだけ文章で送り直す。
+通知一覧・トーク一覧に出る altText には文章の要点（1行目＋次の行）を入れる。
 
 LINE の Flex の罠（守ること）：幅0%の箱は断られる（最低1%）／altText は400字まで／日本語は wrap を付けないと「…」で切れる／
 色は #RRGGBB／1回の push は5メッセージまで。
@@ -128,6 +128,12 @@ def bubble(head: dict, body: list[dict]) -> dict:
             "body": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": body}}
 
 
+def alt_of(text: str) -> str:
+    """通知一覧に出る1文：文章の1行目と、次の中身のある1行（カードだけ送るので要点が見えるように）"""
+    ls = [l.strip() for l in str(text).splitlines() if l.strip()]
+    return "　".join(ls[:2])[:400] if ls else "通知"
+
+
 def message(alt: str, bub: dict) -> dict:
     """Flex メッセージ（altText は通知一覧に出る1文・400字まで）"""
     return {"type": "flex", "altText": (alt or "通知")[:400], "contents": bub}
@@ -186,7 +192,7 @@ def text_card(text: str, route: str = "INVEST", level: str | None = None, title:
             prev_row = False
     if not body:
         body.append(_text(sub or first, "sm", TEXT))
-    return message(first, bubble(header(title, route, level, sub), body))
+    return message(alt_of(text), bubble(header(title, route, level, sub), body))
 
 
 MAX_CARD_BYTES = 20_000     # これより大きいカードは付けない（LINE のバブルの上限より十分小さく）
@@ -196,22 +202,22 @@ MAX_CARD_LINES = 60         # 文章が長すぎるときはカードを付け�
 def messages(text: str, route: str = "INVEST", level: str | None = None, limit: int = 4800) -> list[dict]:
     """push の messages に入れる「文章＋共通のカード」。カードが作れない・大きすぎるときは文章だけ。
     独自の送信関数を持つ送り手は、[{"type": "text", ...}] の代わりにこれを渡す（2026-10-19）"""
-    msgs = [{"type": "text", "text": str(text)[:limit]}]
+    text_msg = {"type": "text", "text": str(text)[:limit]}
     try:
         if len(str(text).splitlines()) <= MAX_CARD_LINES:
             card = text_card(text, route, level)
             if len(json.dumps(card, ensure_ascii=False).encode("utf-8")) <= MAX_CARD_BYTES:
-                msgs.append(card)
+                return [card]                      # カードだけ（2026-10-19）
     except Exception:  # noqa: BLE001  カードの失敗で通知を落とさない
         pass
-    return msgs
+    return [text_msg]
 
 
 # ───── 送る ─────
 def push(token: str, user: str, text: str, flex: dict | None = None, timeout: float = 15) -> tuple[bool, str]:
     """文章（＋Flex）を1回の push で送る。Flex が形式で断られた（400）ときだけ文章だけで送り直す"""
     text_msg = {"type": "text", "text": text[:4800]}
-    tries = [[text_msg, flex], [text_msg]] if flex else [[text_msg]]
+    tries = [[flex], [text_msg]] if flex else [[text_msg]]     # カードだけ。断られたら文章だけで送り直す
     why = ""
     for msgs in tries:
         body = json.dumps({"to": user, "messages": msgs}).encode("utf-8")
@@ -219,10 +225,10 @@ def push(token: str, user: str, text: str, flex: dict | None = None, timeout: fl
                                      headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"})
         try:
             with urllib.request.urlopen(req, timeout=timeout) as r:
-                return (200 <= r.status < 300), f"HTTP {r.status}" + ("（文章＋カード）" if len(msgs) == 2 else "")
+                return (200 <= r.status < 300), f"HTTP {r.status}" + ("（カード）" if msgs[0].get("type") == "flex" else "（文章）")
         except urllib.error.HTTPError as e:
             why = f"HTTP {e.code} {e.read().decode('utf-8', 'replace')[:200]}"
-            if e.code != 400 or len(msgs) == 1:
+            if e.code != 400 or msgs[0].get("type") != "flex":
                 return False, why
         except Exception as e:  # noqa: BLE001
             return False, f"{type(e).__name__}: {e}"
