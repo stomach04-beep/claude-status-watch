@@ -29,14 +29,18 @@ LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push"
 
 ROUTE_COLOR = {"LIFE": "#1A7F37", "INVEST": "#2563EB", "IPO": "#7C3AED", "SYSTEM": "#4B5563"}
 LEVELS = {"act": "🔴 要対応", "look": "🟡 見ておく", "info": "🟢 報告だけ"}
-PLUS, MINUS, GRAY, TEXT = "#1A7F37", "#D93025", "#888888", "#333333"
+PLUS, MINUS, GRAY, TEXT = "#1A7F37", "#D93025", "#666666", "#333333"   # 灰色は少し濃く（2026-10-19「小さい字が読みにくい」）
+# 字の大きさは全部1段大きくして出す（2026-10-19 ユーザー「フォントを小さくしている部分が少し読みにくい」）。
+# 部品の中は従来の段（xxs〜lg）で書き、ここで1段上げる＝1か所で全カードの字の大きさを変えられる
+SIZE_UP = {"xxs": "xs", "xs": "sm", "sm": "md", "md": "lg", "lg": "xl", "xl": "xxl"}
 RULE = "#D1D5DB"      # 表の横線の色（2026-10-19 ユーザー「横線があったほうが見やすい」）
 
 
 # ───── 部品 ─────
 def _text(text: str, size: str = "xs", color: str = TEXT, bold: bool = False, align: str | None = None,
           flex: int | None = None, margin: str | None = None) -> dict:
-    t = {"type": "text", "text": str(text) if str(text) != "" else " ", "size": size, "color": color, "wrap": True}
+    t = {"type": "text", "text": str(text) if str(text) != "" else " ", "size": SIZE_UP.get(size, size), "color": color,
+         "wrap": True}
     if bold:
         t["weight"] = "bold"
     if align:
