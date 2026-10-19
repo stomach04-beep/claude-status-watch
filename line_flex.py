@@ -29,15 +29,16 @@ LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push"
 
 # ダークモード（2026-10-19 ユーザー「背景は暗め・白い字のほうが見やすい」）。帯はアカウントの色を少し落ち着かせ、本文は濃い灰色に白い字
 ROUTE_COLOR = {"LIFE": "#166534", "INVEST": "#1D4ED8", "IPO": "#6D28D9", "SYSTEM": "#374151"}
-BG = "#111827"        # 本文の背景（ほぼ黒の濃い紺）
+BG = "#1F2937"        # 本文の背景（濃い灰。2026-10-19 案C：LINE の暗い背景から少し浮かせる）
+FRAME = "#9CA3AF"     # カードを囲む灰色の枠（案C）
 SUB = "#D1D5DB"       # 一段控えめな白（明細の字・横棒の名前）
-TRACK = "#374151"     # 横棒の下地
+TRACK = "#4B5563"     # 横棒の下地
 LEVELS = {"act": "🔴 要対応", "look": "🟡 見ておく", "info": "🟢 報告だけ"}
 PLUS, MINUS, GRAY, TEXT = "#4ADE80", "#F87171", "#9CA3AF", "#F9FAFB"   # 暗い背景で見える明るい緑・赤・灰・白
 # 字の大きさは全部1段大きくして出す（2026-10-19 ユーザー「フォントを小さくしている部分が少し読みにくい」）。
 # 部品の中は従来の段（xxs〜lg）で書き、ここで1段上げる＝1か所で全カードの字の大きさを変えられる
 SIZE_UP = {"xxs": "xs", "xs": "sm", "sm": "md", "md": "lg", "lg": "xl", "xl": "xxl"}
-RULE = "#374151"      # 表の横線の色（2026-10-19 ユーザー「横線があったほうが見やすい」・暗い背景になじむ灰）
+RULE = "#4B5563"      # 表の横線の色（2026-10-19 ユーザー「横線があったほうが見やすい」・本文の灰より一段明るい）
 
 
 # ───── 部品 ─────
@@ -142,10 +143,16 @@ def yen_color(v: float) -> str:
 
 
 def bubble(head: dict, body: list[dict]) -> dict:
-    """カード1枚（ダークモード：本文の背景を暗く、区切り線も暗い灰）"""
-    return {"type": "bubble", "size": "giga", "header": head,
-            "body": {"type": "box", "layout": "vertical", "spacing": "sm", "backgroundColor": BG, "contents": body},
-            "styles": {"body": {"backgroundColor": BG, "separator": False}}}
+    """カード1枚（2026-10-19 案C：色の帯と本文を1つの箱に入れ、灰色の枠で囲む。LINE のカードは外側に直接枠を付けられないため）。
+    箱の外（カード自体の地）は透明にして、LINE の暗い背景の上に枠つきの箱だけが見えるようにする"""
+    head = dict(head, cornerRadius="9px")
+    inner = {"type": "box", "layout": "vertical", "spacing": "sm", "paddingAll": "12px", "contents": body}
+    frame = {"type": "box", "layout": "vertical", "borderWidth": "2px", "borderColor": FRAME, "cornerRadius": "12px",
+             "backgroundColor": BG, "contents": [head, inner]}
+    return {"type": "bubble", "size": "giga",
+            "body": {"type": "box", "layout": "vertical", "paddingAll": "0px", "backgroundColor": "#00000000",
+                     "contents": [frame]},
+            "styles": {"body": {"backgroundColor": "#00000000"}}}
 
 
 def alt_of(text: str) -> str:
