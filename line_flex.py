@@ -27,13 +27,17 @@ from pathlib import Path
 
 LINE_PUSH_URL = "https://api.line.me/v2/bot/message/push"
 
-ROUTE_COLOR = {"LIFE": "#1A7F37", "INVEST": "#2563EB", "IPO": "#7C3AED", "SYSTEM": "#4B5563"}
+# ダークモード（2026-10-19 ユーザー「背景は暗め・白い字のほうが見やすい」）。帯はアカウントの色を少し落ち着かせ、本文は濃い灰色に白い字
+ROUTE_COLOR = {"LIFE": "#166534", "INVEST": "#1D4ED8", "IPO": "#6D28D9", "SYSTEM": "#374151"}
+BG = "#111827"        # 本文の背景（ほぼ黒の濃い紺）
+SUB = "#D1D5DB"       # 一段控えめな白（明細の字・横棒の名前）
+TRACK = "#374151"     # 横棒の下地
 LEVELS = {"act": "🔴 要対応", "look": "🟡 見ておく", "info": "🟢 報告だけ"}
-PLUS, MINUS, GRAY, TEXT = "#1A7F37", "#D93025", "#666666", "#333333"   # 灰色は少し濃く（2026-10-19「小さい字が読みにくい」）
+PLUS, MINUS, GRAY, TEXT = "#4ADE80", "#F87171", "#9CA3AF", "#F9FAFB"   # 暗い背景で見える明るい緑・赤・灰・白
 # 字の大きさは全部1段大きくして出す（2026-10-19 ユーザー「フォントを小さくしている部分が少し読みにくい」）。
 # 部品の中は従来の段（xxs〜lg）で書き、ここで1段上げる＝1か所で全カードの字の大きさを変えられる
 SIZE_UP = {"xxs": "xs", "xs": "sm", "sm": "md", "md": "lg", "lg": "xl", "xl": "xxl"}
-RULE = "#D1D5DB"      # 表の横線の色（2026-10-19 ユーザー「横線があったほうが見やすい」）
+RULE = "#374151"      # 表の横線の色（2026-10-19 ユーザー「横線があったほうが見やすい」・暗い背景になじむ灰）
 
 
 # ───── 部品 ─────
@@ -101,8 +105,8 @@ def bars(rows: list[tuple[str, float, str]], label_flex: int = 4) -> list[dict]:
         width = min(100, max(1, round(abs(v) / vmax * 100)))     # 0% の箱は LINE に断られる
         color = PLUS if v > 0 else MINUS if v < 0 else GRAY
         out.append({"type": "box", "layout": "horizontal", "spacing": "sm", "alignItems": "center", "contents": [
-            _text(label, "xxs", "#555555", flex=label_flex),
-            {"type": "box", "layout": "horizontal", "flex": 3, "height": "10px", "backgroundColor": "#EEEEEE",
+            _text(label, "xxs", SUB, flex=label_flex),
+            {"type": "box", "layout": "horizontal", "flex": 3, "height": "10px", "backgroundColor": TRACK,
              "cornerRadius": "3px", "contents": [{"type": "box", "layout": "vertical", "width": f"{width}%",
                                                    "backgroundColor": color, "cornerRadius": "3px", "contents": []}]},
             _text(vt, "xs", color, bold=True, align="end", flex=3)]})
@@ -111,7 +115,7 @@ def bars(rows: list[tuple[str, float, str]], label_flex: int = 4) -> list[dict]:
 
 def rule(strong: bool = False) -> dict:
     """横線（表の行の区切り）。strong は見出しの下の濃い線"""
-    return {"type": "separator", "margin": "sm", "color": "#9CA3AF" if strong else RULE}
+    return {"type": "separator", "margin": "sm", "color": "#6B7280" if strong else RULE}
 
 
 def note(text: str) -> dict:
@@ -124,8 +128,10 @@ def yen_color(v: float) -> str:
 
 
 def bubble(head: dict, body: list[dict]) -> dict:
+    """カード1枚（ダークモード：本文の背景を暗く、区切り線も暗い灰）"""
     return {"type": "bubble", "size": "giga", "header": head,
-            "body": {"type": "box", "layout": "vertical", "spacing": "sm", "contents": body}}
+            "body": {"type": "box", "layout": "vertical", "spacing": "sm", "backgroundColor": BG, "contents": body},
+            "styles": {"body": {"backgroundColor": BG, "separator": False}}}
 
 
 def alt_of(text: str) -> str:
@@ -184,7 +190,7 @@ def text_card(text: str, route: str = "INVEST", level: str | None = None, title:
             if prev_row:
                 body.append(rule())
             indent = raw.startswith(("　　", "    ")) or (raw.startswith(("　", "  ")) and l[:1] not in ("・", "-", "•"))
-            body.append(_text(l, "xxs" if indent else "xs", "#555555" if indent else TEXT,
+            body.append(_text(l, "xxs" if indent else "xs", SUB if indent else TEXT,
                               margin="none" if indent else None))
             prev_row = True
         else:
