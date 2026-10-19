@@ -74,6 +74,19 @@ def kpi(text: str, color: str = TEXT) -> dict:
     return _text(text, "lg", color, bold=True)
 
 
+def kpi_parts(parts: list[tuple[str, str | None]]) -> dict:
+    """② 結論1つを、言葉は白・数字だけ色で（2026-10-19 ユーザー「きょうの合計の文字は赤以外に。下がったら赤・上がったら緑」）。
+    parts は [(文字, 色 or None), ...]。None は白。1行の中で色を変えるので LINE の span を使う"""
+    spans = [{"type": "span", "text": t, "color": c or TEXT, "weight": "bold"} for t, c in parts if t]
+    return {"type": "text", "text": "".join(t for t, _c in parts) or " ", "size": SIZE_UP["lg"], "wrap": True,
+            "weight": "bold", "color": TEXT, "contents": spans}
+
+
+def money(label: str, v: float, vt: str, tail: str = "") -> list[tuple[str, str | None]]:
+    """「きょうの合計 −52.8万円（9銘柄）」の形：言葉は白、金額だけプラス緑・マイナス赤・0は白"""
+    return [(label, None), (vt, yen_color(v) if v else None), (tail, None)]
+
+
 def section(title: str) -> list[dict]:
     """小見出し（区切り線つき）"""
     return [{"type": "separator", "margin": "md"}, _text(title, "sm", TEXT, bold=True, margin="md")]
@@ -124,6 +137,7 @@ def note(text: str) -> dict:
 
 
 def yen_color(v: float) -> str:
+    """色の使い分け（全カード共通）：上がった・プラス＝緑、下がった・マイナス＝赤、増減なし＝白"""
     return PLUS if v > 0 else MINUS if v < 0 else TEXT
 
 
