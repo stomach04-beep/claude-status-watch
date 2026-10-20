@@ -1,0 +1,86 @@
+name: "Claude Release Watch (毎時・Claude Code/モデル/アプリの新版をLINE通知)"
+
+# Claude Code 本体の版・モデルの顔ぶれ・API の更新（モデル関連だけ）・Claude アプリの更新を毎時読み、
+# 前回の控え（release_watch/state.json）と違ったときだけ🔧システム見張りの LINE に知らせる。
+# 2026-10-21 新設（ユーザー「Claude の新しい version が来たら通知。モデルのアップデートも含めて」）。
+#
+# 【安全境界】読むのは公開ページだけ（npm・GitHub の CHANGELOG・platform.claude.com・support.claude.com）。
+#             書くのは release_watch/state.json だけ。AI呼び出しなし（英語の本文は訳さず短く載せる）。
+# 依存パッケージなし（標準ライブラリのみ）。state は変化があった回だけコミットする。
+
+on:
+  schedule:
+    # 毎時45分（障害監視の */20・アプリ生存監視の :25 とずらす。GitHub の schedule は遅れるのが常態）
+    - cron: "45 * * * *"
+  workflow_dispatch:
+    inputs:
+      force_test:
+        description: "配線テスト（いま控えている版の一覧を1通LINEに送る。控えは変えない）: true/false"
+        required: false
+        default: "false"
+      dry_run:
+        description: "送信せず本文だけログに出す: true/false"
+        required: false
+        default: "false"
+
+# 二重起動しない（前の回が遅れて残っていたら重ねない）
+concurrency:
+  group: claude-release-watch
+  cancel-in-progress: false
+
+# state.json をコミットして戻すので contents: write が要る
+permissions:
+  contents: write
+
+jobs:
+  watch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      PYTHONIOENCODING: utf-8
+      TZ: Asia/Tokyo
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          # 後で git push するのでトークンは残す（このリポジトリには機密ファイルが無く、pip install もしない）
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: 新版を確認 → 変化があればLINE
+        env:
+          # 宛先は🔧システム見張りアカウント（専用の Secret が空なら共通の Secret で送る）
+          LINE_CHANNEL_ACCESS_TOKEN: ${{ secrets.LINE_TOKEN_SYSTEM || secrets.LINE_CHANNEL_ACCESS_TOKEN }}
+          LINE_USER_ID: ${{ secrets.LINE_USER_ID_SYSTEM || secrets.LINE_USER_ID }}
+          FORCE_TEST: ${{ github.event.inputs.force_test == 'true' && '1' || '0' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+        run: |
+          if [ -z "$LINE_CHANNEL_ACCESS_TOKEN" ] || [ -z "$LINE_USER_ID" ]; then
+            echo "::error::LINE_CHANNEL_ACCESS_TOKEN / LINE_USER_ID が未設定です（通知が飛びません）"
+            exit 1
+          fi
+          python -X utf8 release_watch/release_watch.py
+
+      # state.json が変わったときだけコミットして戻す（変化なしの回はコミットしない）
+      - name: 状態ファイルをコミット
+        if: always()
+        run: |
+          git add release_watch/state.json 2>/dev/null || true
+          if git diff --cached --quiet; then
+            echo "状態に変化なし（コミットしない）"
+            exit 0
+          fi
+          git config user.name "claude-release-watch[bot]"
+          git config user.email "actions@users.noreply.github.com"
+          git commit -m "release state: $(date '+%Y-%m-%d %H:%M JST')"
+          # 同時に走った別 run（障害監視・アプリ生存監視の state コミット）と競合したら取り込み直してから push（3回まで）
+          for i in 1 2 3; do
+            git push && exit 0
+            git pull --rebase || true
+          done
+          echo "::error::release_watch/state.json の push に失敗（次回、同じ新版をもう一度知らせる恐れ）"
+          exit 1
