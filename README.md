@@ -50,3 +50,20 @@ python claude_status_watch.py
 ## 必要な Secrets
 
 `LINE_CHANNEL_ACCESS_TOKEN` / `LINE_USER_ID`（他ジョブと同じもの）
+
+## 新版の見張り release_watch（2026-10-21 追加）
+
+`release_watch/release_watch.py` ＋ `.github/workflows/release_watch.yml`（毎時45分）。次の4つを前回の控え（`release_watch/state.json`）と比べ、変わったときだけ🔧システム見張りの LINE に1枚のカードで知らせる。
+
+| 見張り先 | 何を比べるか |
+|---|---|
+| Claude Code 本体 | npm `@anthropic-ai/claude-code` の latest。箇条書きは CHANGELOG.md から（英語のまま・4件まで） |
+| モデルの顔ぶれ | モデル一覧ページの表「Claude API ID」の行。増えた＝🆕、消えた＝一覧から外れた |
+| API の更新 | リリースノートの日付の節。**モデルの話（発表・値下げ・廃止など）だけ**載せ、それ以外は黙って控えを進める |
+| Claude アプリの更新 | ヘルプセンターのリリースノートの日付の節（太字の見出しを載せる） |
+
+- 控えが無い見張り先は初回に控えるだけ（知らせない）。読めない回は控えを変えず、6回続いたら1回だけ知らせ、戻ったらもう1回
+- 送れなかった回は控えを進めない（次の回でもう一度送る）
+- 手で試す：`set DRY_RUN=1` → `python release_watch\release_watch.py`（作業用コピーで試すと本物の LINE が飛ぶので DRY_RUN は必須）
+- Actions の Run workflow：`force_test=true` で「いま控えている版」を1通、`dry_run=true` で本文だけ
+- 限界：デスクトップアプリの版番号そのものは見ていない（配布元の番号とストア版の番号が別系統で、知らせると混乱するため。アプリの更新はリリースノートの日付で拾う）

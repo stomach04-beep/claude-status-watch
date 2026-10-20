@@ -1,0 +1,23 @@
+{
+  "cli": {
+    "fail": 0,
+    "value": "2.1.304"
+  },
+  "models": {
+    "fail": 0,
+    "value": [
+      "claude-fable-5-1",
+      "claude-haiku-5-5",
+      "claude-opus-5-5",
+      "claude-sonnet-5-5"
+    ]
+  },
+  "api": {
+    "fail": 0,
+    "value": "October 15, 2026"
+  },
+  "app": {
+    "fail": 0,
+    "value": "October 7, 2026"
+  }
+}
