@@ -27,3 +27,4 @@
 2026-10-08 01:36,発生,978mjkgw6mh7,Elevated errors on platform.claude.com,major,Claude Console (platform.claude.com),10/07 22:25,
 2026-10-14 06:31,復旧,978mjkgw6mh7,Elevated errors on platform.claude.com,,,10/07 22:25,152時間6分
 2026-10-22 05:02,発生,njk29r81v3wg,Degraded performance for Claude Fable 5,minor,claude.ai|Claude API (api.anthropic.com)|Claude Code|Claude Cowork,10/22 04:49,
+2026-10-22 08:25,復旧,njk29r81v3wg,Degraded performance for Claude Fable 5,,,10/22 04:49,3時間36分

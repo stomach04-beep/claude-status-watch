@@ -1,27 +1,8 @@
 {
-  "is_down": true,
-  "since": "2026-10-21T19:49:06.486000+00:00",
-  "incidents": {
-    "njk29r81v3wg": {
-      "name": "Degraded performance for Claude Fable 5",
-      "impact": "minor",
-      "status": "investigating",
-      "started": "2026-10-21T19:49:06.486Z",
-      "components": [
-        "claude.ai",
-        "Claude API (api.anthropic.com)",
-        "Claude Code",
-        "Claude Cowork"
-      ],
-      "last_update": "We are investigating elevated errors on requests to Claude Fable 5. We will provide an update as soon as possible."
-    }
-  },
-  "degraded": [
-    "Claude API (api.anthropic.com)",
-    "Claude Code",
-    "Claude Cowork",
-    "claude.ai"
-  ],
+  "is_down": false,
+  "since": null,
+  "incidents": {},
+  "degraded": [],
   "fetch_fail": 0,
-  "checked_at": "2026-10-21T20:02:44.904969+00:00"
+  "checked_at": "2026-10-21T23:25:08.100335+00:00"
 }
