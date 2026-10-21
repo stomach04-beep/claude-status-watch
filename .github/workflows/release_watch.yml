@@ -5,7 +5,9 @@ name: "Claude Release Watch (毎時・Claude Code/モデル/アプリの新版�
 # 2026-10-21 新設（ユーザー「Claude の新しい version が来たら通知。モデルのアップデートも含めて」）。
 #
 # 【安全境界】読むのは公開ページだけ（npm・GitHub の CHANGELOG・platform.claude.com・support.claude.com）。
-#             書くのは release_watch/state.json だけ。AI呼び出しなし（英語の本文は訳さず短く載せる）。
+#             書くのは release_watch/state.json だけ。
+# 2026-10-21 追加：通知が出る回だけ Haiku 5.5（Max 付属の API クレジット）で英語の箇条書きを日本語2〜3行に要約。
+#             1日5回まで・api_budget の「停止」では呼ばない・失敗したら英語のまま送る（要約は飾りで、送信と終了コードを変えない）。
 # 依存パッケージなし（標準ライブラリのみ）。state は変化があった回だけコミットする。
 
 on:
@@ -20,6 +22,10 @@ on:
         default: "false"
       dry_run:
         description: "送信せず本文だけログに出す: true/false"
+        required: false
+        default: "false"
+      preview:
+        description: "要約の試運転（各見張り先の1つ前の版→最新を変化とみなして要約つきで1通。控えは変えない）: true/false"
         required: false
         default: "false"
 
@@ -58,6 +64,10 @@ jobs:
           LINE_USER_ID: ${{ secrets.LINE_USER_ID_SYSTEM || secrets.LINE_USER_ID }}
           FORCE_TEST: ${{ github.event.inputs.force_test == 'true' && '1' || '0' }}
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+          PREVIEW: ${{ github.event.inputs.preview == 'true' && '1' || '0' }}
+          # 日本語の要約（無ければ英語のまま送る）と API クレジットの予算判定・使用ログ
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: |
           if [ -z "$LINE_CHANNEL_ACCESS_TOKEN" ] || [ -z "$LINE_USER_ID" ]; then
             echo "::error::LINE_CHANNEL_ACCESS_TOKEN / LINE_USER_ID が未設定です（通知が飛びません）"
