@@ -72,7 +72,7 @@ ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 SUMMARY_MODEL = "claude-haiku-5-5"
 SUMMARY_JOB = "Claude新版の要約"      # 使用ログの「ジョブ」（api_budget の選択肢に無いので「その他」＋備考に入る）
 SUMMARY_DAILY_CAP = 5        # 1日に要約を呼ぶ上限（暴走の歯止め。超えた分は英語のまま送る）
-SUMMARY_MAX_TOKENS = 800     # 返事の長さの上限
+SUMMARY_MAX_TOKENS = 1500    # 返事の長さの上限（要約は短いが、切れて JSON が壊れないよう余裕を持たせる）
 SUMMARY_TIMEOUT_SEC = 60     # 1回の呼び出しの絶対上限（応答が返らないまま待ち続けない）
 SUMMARY_SRC_BULLETS = 15     # 要約に渡す英語の箇条書きの数（1つの版あたり）
 JA_CHARS = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]")   # ひらがな・カタカナ・漢字
@@ -273,6 +273,8 @@ SUMMARY_PROMPT = """あなたは Claude（Anthropic の AI）の更新情報を�
 - 1行は40字以内。専門用語は平易な言い換えにし、コマンド名・機能名・モデル名は原文のまま残してよい
 - 利用者に関係の大きいもの（新モデル・新機能・料金・廃止・よく使う機能の不具合修正）を優先し、細かい修正は「ほか細かな修正」とまとめる
 - 原文に無いことは書かない。推測で補わない
+- 見出し（版番号・日付）は別に表示されるので、要約の行で繰り返さない。1行目から中身を書く
+- research preview / beta は「試験提供」と訳す（研究者向けではない）
 - 返事は JSON だけ。形は {"ブロック番号": ["1行目", "2行目"], ...}（行頭に「・」は付けない）
 
 """
@@ -283,6 +285,9 @@ def _ask_claude(api_key: str, prompt: str) -> dict | None:
     body = json.dumps({
         "model": SUMMARY_MODEL,
         "max_tokens": SUMMARY_MAX_TOKENS,
+        # Haiku 5.5 は既定で「考える」が自動でオンになり、出力の上限を考える側で使い切って本文が空になる
+        # （2026-10-22 実測：出力800トークン・本文0文字）。要約は考える必要がないのでオフにする（effort 既定 medium では可）
+        "thinking": {"type": "disabled"},
         "messages": [{"role": "user", "content": prompt}],
     }).encode("utf-8")
     req = urllib.request.Request(ANTHROPIC_URL, data=body, method="POST", headers={
@@ -345,6 +350,8 @@ def summarize_ja(blocks: list[list[str]], materials: list[str], state: dict, now
     if not res:
         return None
 
+    if res.get("stop_reason") not in ("end_turn", "stop_sequence"):
+        log(f"要約: 返事が途中で止まった（stop_reason={res.get('stop_reason')}）")
     usage = res.get("usage", {})
     if budget is not None:
         budget.record_usage(SUMMARY_JOB, SUMMARY_MODEL, 1, int(usage.get("input_tokens", 0)),
