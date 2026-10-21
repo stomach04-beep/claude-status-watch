@@ -1,0 +1,17 @@
+name: "probe github models (temporary)"
+on:
+  push:
+    branches: [claude/probe-github-models]
+permissions:
+  models: read
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - run: |
+          curl -s -D h.txt -o b.json https://models.github.ai/inference/chat/completions \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" -H "Content-Type: application/json" \
+            -d '{"model":"openai/gpt-4.1-mini","messages":[{"role":"user","content":"Summarize in one Japanese sentence: Claude Code 2.1.306 adds a new /usage command and fixes a crash on Windows."}],"max_tokens":120}'
+          head -1 h.txt; grep -i ratelimit h.txt || true; cat b.json
