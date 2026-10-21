@@ -17,8 +17,16 @@ release_watch.py ― Claude の「新しい版」と「モデルの更新」を�
   LINE_CHANNEL_ACCESS_TOKEN / LINE_USER_ID … 通知先（無ければ本文を出すだけ）
   DRY_RUN=1                                … 送信せず本文を標準出力（手元で試すときは必ずこれ）
   FORCE_TEST=1                             … 状態に関係なく「今の版」の一覧を1通送る（配線確認用。控えは更新しない）
+  PREVIEW=1                                … 各見張り先の「1つ前の版→最新」を変化とみなして要約つきで1通作る（要約の試運転。控えは更新しない）
+  ANTHROPIC_API_KEY                        … 日本語の要約に使う（無ければ英語の箇条書きのまま送る）
+  NOTION_TOKEN                             … API クレジットの予算判定と使用ログ（api_budget.py。無くても要約は動く）
 
-【安全境界】読むのは公開ページだけ。書くのは release_watch/state.json だけ。英語の本文は訳さずそのまま短く載せる。
+【日本語の要約】2026-10-21 追加（ユーザー「内容を要約した上で通知してほしい。無料で」→ Max 付属の API クレジットで Haiku に決定）
+  通知が出る回だけ、英語の箇条書きを Haiku 5.5 に渡して ■ のまとまりごとに日本語2〜3行へまとめる（1回の通知につき呼び出し1回）。
+  要約は飾り：鍵なし・失敗・時間切れ・日本語が返らない・1日の上限（SUMMARY_DAILY_CAP）超え・予算「停止」のときは、
+  今までどおり英語の箇条書きで送る。要約の成否で終了コードも送信も変えない。
+
+【安全境界】読むのは公開ページだけ。書くのは release_watch/state.json だけ（＋使用ログ DB に1行）。
 """
 from __future__ import annotations
 
@@ -58,6 +66,16 @@ FETCH_TIMEOUT_SEC = 20     # 1回あたりのタイムアウト
 FETCH_FAIL_NOTIFY_AT = 6   # 毎時なので連続6回（約6時間）取れなかったら1回だけ知らせる
 MAX_BULLETS = 4            # 1つの更新に載せる英語の箇条書きの数
 MAX_BULLET_CHARS = 110     # 箇条書き1つの長さ（長いと LINE のカードが読みにくい）
+
+# 日本語の要約（Claude API）
+ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+SUMMARY_MODEL = "claude-haiku-5-5"
+SUMMARY_JOB = "Claude新版の要約"      # 使用ログの「ジョブ」（api_budget の選択肢に無いので「その他」＋備考に入る）
+SUMMARY_DAILY_CAP = 5        # 1日に要約を呼ぶ上限（暴走の歯止め。超えた分は英語のまま送る）
+SUMMARY_MAX_TOKENS = 800     # 返事の長さの上限
+SUMMARY_TIMEOUT_SEC = 60     # 1回の呼び出しの絶対上限（応答が返らないまま待ち続けない）
+SUMMARY_SRC_BULLETS = 15     # 要約に渡す英語の箇条書きの数（1つの版あたり）
+JA_CHARS = re.compile(r"[\u3040-\u30ff\u4e00-\u9fff]")   # ひらがな・カタカナ・漢字
 
 SOURCE_JA = {
     "cli": "Claude Code 本体",
@@ -227,6 +245,136 @@ def diff_source(key: str, prev_val, cur: dict) -> list[str]:
     return out
 
 
+def source_material(key: str, prev_val, cur: dict) -> str:
+    """要約に渡す英語の原文（カード用に4件・110文字で切る前の箇条書き）。diff_source と同じ節の選び方をする"""
+    if key == "models":
+        return ""                              # 顔ぶれの増減はカードの行そのもので足りる
+    if key == "cli":
+        secs = newer_sections(cur["sections"], prev_val)
+    elif key == "api":
+        secs = [(d, [b for b in bs if is_model_news(b)])
+                for d, bs in newer_sections(cur["sections"], prev_val, limit=6)]
+    else:
+        secs = newer_sections(cur["sections"], prev_val)
+    parts = []
+    for head, bullets in secs:
+        if bullets:
+            parts.append(f"[{head}]\n" + "\n".join(f"- {short(b, 400)}" for b in bullets[:SUMMARY_SRC_BULLETS]))
+    return "\n".join(parts)
+
+
+# ─────────────────────────────────────────────
+# 2.5) 日本語の要約（飾り。失敗したら None を返し、呼び出し側は英語のまま送る）
+# ─────────────────────────────────────────────
+SUMMARY_PROMPT = """あなたは Claude（Anthropic の AI）の更新情報を、日本の一般ユーザー（獣医師・プログラミング初心者）向けに短く紹介する係です。
+下の <block> ごとに、何が変わったかを日本語で2〜3行にまとめてください。
+
+決まり：
+- 1行は40字以内。専門用語は平易な言い換えにし、コマンド名・機能名・モデル名は原文のまま残してよい
+- 利用者に関係の大きいもの（新モデル・新機能・料金・廃止・よく使う機能の不具合修正）を優先し、細かい修正は「ほか細かな修正」とまとめる
+- 原文に無いことは書かない。推測で補わない
+- 返事は JSON だけ。形は {"ブロック番号": ["1行目", "2行目"], ...}（行頭に「・」は付けない）
+
+"""
+
+
+def _ask_claude(api_key: str, prompt: str) -> dict | None:
+    """Claude API を1回呼ぶ。戻り値は API の JSON（失敗なら None）"""
+    body = json.dumps({
+        "model": SUMMARY_MODEL,
+        "max_tokens": SUMMARY_MAX_TOKENS,
+        "messages": [{"role": "user", "content": prompt}],
+    }).encode("utf-8")
+    req = urllib.request.Request(ANTHROPIC_URL, data=body, method="POST", headers={
+        "x-api-key": api_key, "anthropic-version": "2023-06-01", "content-type": "application/json"})
+    try:
+        with urllib.request.urlopen(req, timeout=SUMMARY_TIMEOUT_SEC) as r:
+            return json.loads(r.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        log(f"要約: API が HTTP {e.code} {e.read()[:200]!r}")
+    except Exception as e:  # noqa: BLE001
+        log(f"要約: API 呼び出し失敗 {e}")
+    return None
+
+
+def summarize_ja(blocks: list[list[str]], materials: list[str], state: dict, now: datetime) -> list | None:
+    """■ のまとまりごとに日本語の要約行を返す（[行のリスト or None, ...]）。全体が使えなければ None"""
+    api_key = _clean_secret(os.environ.get("ANTHROPIC_API_KEY"))
+    if not api_key:
+        log("要約: ANTHROPIC_API_KEY が無いので英語のまま送ります")
+        return None
+    # 暴走の歯止め：1日の呼び出し回数を控え（state.json）で数える
+    ent = state.setdefault("summary", {})
+    today = now.strftime("%Y-%m-%d")
+    if ent.get("date") != today:
+        ent["date"], ent["calls"] = today, 0
+    if int(ent.get("calls", 0)) >= SUMMARY_DAILY_CAP:
+        log(f"要約: 今日はすでに{SUMMARY_DAILY_CAP}回呼んだので英語のまま送ります（上限）")
+        return None
+    # API クレジットの予算判定（api_budget.py は claud-code の api-budget/api_budget.py の写し・リポジトリ直下）
+    budget = None
+    try:
+        root = os.path.dirname(BASE_DIR)
+        if root not in sys.path:
+            sys.path.insert(0, root)
+        import api_budget
+        budget = api_budget
+        decision = api_budget.check_budget(SUMMARY_JOB)
+        if decision.mode == "stop":
+            log(f"要約: 予算が「停止」なので英語のまま送ります（{decision.reason}）")
+            return None
+    except Exception as e:  # noqa: BLE001  予算判定の不具合で通知を落とさない
+        log(f"要約: 予算判定できず続行（{e}）")
+        decision = None
+
+    prompt = SUMMARY_PROMPT
+    for i, (lines, mat) in enumerate(zip(blocks, materials), 1):
+        prompt += f'<block n="{i}">\n' + "\n".join(lines) + ("\n原文:\n" + mat if mat else "") + "\n</block>\n"
+
+    ent["calls"] = int(ent.get("calls", 0)) + 1     # 失敗しても1回と数える（失敗の連打も歯止めの対象）
+    # urlopen の timeout は1回の読み取りの上限なので、別スレッドで呼んで全体の上限をかける
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutTimeout
+    ex = ThreadPoolExecutor(max_workers=1)
+    try:
+        res = ex.submit(_ask_claude, api_key, prompt).result(timeout=SUMMARY_TIMEOUT_SEC + 15)
+    except FutTimeout:
+        log("要約: 時間切れ（英語のまま送ります）")
+        res = None
+    finally:
+        ex.shutdown(wait=False)
+    if not res:
+        return None
+
+    usage = res.get("usage", {})
+    if budget is not None:
+        budget.record_usage(SUMMARY_JOB, SUMMARY_MODEL, 1, int(usage.get("input_tokens", 0)),
+                            int(usage.get("output_tokens", 0)), note=f"{len(blocks)}件のまとまり",
+                            mode=getattr(decision, "mode", None))
+    text = "".join(c.get("text", "") for c in res.get("content", []) if c.get("type") == "text")
+    m = re.search(r"\{.*\}", text, re.S)                 # 前後に説明文や ``` が付いても JSON 部分だけ取る
+    try:
+        data = json.loads(m.group(0)) if m else {}
+    except ValueError:
+        data = {}
+    out = []
+    for i in range(1, len(blocks) + 1):
+        rows = data.get(str(i))
+        rows = [short(str(r), 80).lstrip("・ ") for r in rows] if isinstance(rows, list) else []
+        rows = [r for r in rows if r][:4]
+        out.append(rows if rows and all(JA_CHARS.search(r) for r in rows) else None)   # 日本語でなければ使わない
+    if not any(out):
+        log(f"要約: 使える日本語が返らなかった（英語のまま送ります）返事の先頭: {text[:200]!r}")
+        return None
+    return out
+
+
+def merge_summary(block: list[str], summary: list[str] | None) -> list[str]:
+    """1つの ■ のまとまりに要約を差し込む。■見出しと ※URL は残し、英語の箇条書きを日本語の要約に置き換える"""
+    if not summary:
+        return block
+    return [block[0], *[f"・{s}" for s in summary], *[l for l in block if l.startswith("※")]]
+
+
 # ─────────────────────────────────────────────
 # 3) 控えの読み書き
 # ─────────────────────────────────────────────
@@ -322,13 +470,36 @@ def main() -> int:
         ok = send_line("\n".join([f"【Claude 新版の見張り】配線テスト {now:%m/%d %H:%M}", "いま控えている版", *body]))
         return 0 if ok or os.environ.get("DRY_RUN") == "1" else 1
 
+    preview = os.environ.get("PREVIEW") == "1"
+    blocks: list[list[str]] = []               # ■ のまとまりごとの行
+    materials: list[str] = []                  # まとまりごとの要約用の原文
     for key, cur in current.items():
         ent = state[key]
-        if "value" not in ent:                 # 初回は控えるだけ（知らせない）
+        prev_val = ent.get("value")
+        if preview:                            # 試運転：1つ前の版（節）から変わったことにする
+            secs = cur.get("sections") or []
+            prev_val = secs[1][0] if len(secs) > 1 else None
+            if prev_val is None:
+                continue
+        elif "value" not in ent:               # 初回は控えるだけ（知らせない）
             log(f"{SOURCE_JA[key]}：初回なので控えるだけ")
-        else:
-            lines += diff_source(key, ent["value"], cur)
+            ent["value"] = cur["value"]
+            continue
+        block = diff_source(key, prev_val, cur)
+        if block:
+            blocks.append(block)
+            materials.append(source_material(key, prev_val, cur))
         ent["value"] = cur["value"]
+
+    if blocks:
+        summaries = summarize_ja(blocks, materials, state, now) or [None] * len(blocks)
+        for block, summ in zip(blocks, summaries):
+            lines += merge_summary(block, summ)
+
+    if preview:
+        text = "\n".join([f"🆕【Claude 新版】要約の試運転 {now:%m/%d %H:%M}", "", *lines]) if lines else "（試運転：材料なし）"
+        ok = send_line(text)
+        return 0 if ok or os.environ.get("DRY_RUN") == "1" else 1
 
     if lines or notes:
         level_mark = "🆕" if lines else "⚠"
