@@ -29,3 +29,4 @@
 2026-10-22 05:02,発生,njk29r81v3wg,Degraded performance for Claude Fable 5,minor,claude.ai|Claude API (api.anthropic.com)|Claude Code|Claude Cowork,10/22 04:49,
 2026-10-22 08:25,復旧,njk29r81v3wg,Degraded performance for Claude Fable 5,,,10/22 04:49,3時間36分
 2026-10-22 16:05,発生,wj6r4t6mxq1r,Elevated errors affecting Connectors,minor,claude.ai|Claude Cowork,10/22 12:50,
+2026-10-22 22:00,復旧,wj6r4t6mxq1r,Elevated errors affecting Connectors,,,10/22 12:50,9時間10分

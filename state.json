@@ -1,23 +1,8 @@
 {
-  "is_down": true,
-  "since": "2026-10-22T03:50:12.621000+00:00",
-  "incidents": {
-    "wj6r4t6mxq1r": {
-      "name": "Elevated errors affecting Connectors",
-      "impact": "minor",
-      "status": "investigating",
-      "started": "2026-10-22T03:50:12.621Z",
-      "components": [
-        "claude.ai",
-        "Claude Cowork"
-      ],
-      "last_update": "We are investigating elevated errors affecting connectors. We will provide an update as soon as possible."
-    }
-  },
-  "degraded": [
-    "Claude Cowork",
-    "claude.ai"
-  ],
+  "is_down": false,
+  "since": null,
+  "incidents": {},
+  "degraded": [],
   "fetch_fail": 0,
-  "checked_at": "2026-10-22T07:05:28.143025+00:00"
+  "checked_at": "2026-10-22T13:00:44.304479+00:00"
 }
