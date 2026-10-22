@@ -1,7 +1,7 @@
 {
   "cli": {
     "fail": 0,
-    "value": "2.1.307"
+    "value": "2.1.308"
   },
   "models": {
     "fail": 0,
@@ -22,6 +22,6 @@
   },
   "summary": {
     "date": "2026-10-22",
-    "calls": 1
+    "calls": 2
   }
 }
