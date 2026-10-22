@@ -58,11 +58,13 @@ def _text(text: str, size: str = "xs", color: str = TEXT, bold: bool = False, al
 
 
 def header(title: str, route: str = "INVEST", level: str = "info", sub: str = "") -> dict:
-    """① 見出しの帯（アカウントの色の帯に白い字）。sub は日付など"""
+    """① 見出しの帯（アカウントの色の帯に白い字）。sub は日付など。
+    札（🔴要対応など）は中身の幅だけ取り、残りを全部題に使う（2026-10-22 題が狭くて3行に折り返していた）"""
+    lv = _text(LEVELS.get(level, level), "xs", "#FFFFFF", align="end", flex=0)
+    lv["wrap"] = False                                         # 札は1行のまま
     contents = [
-        {"type": "box", "layout": "horizontal", "contents": [
-            _text(title, "md", "#FFFFFF", bold=True, flex=5),
-            _text(LEVELS.get(level, level), "xs", "#FFFFFF", align="end", flex=2)]},
+        {"type": "box", "layout": "horizontal", "spacing": "md", "contents": [
+            _text(title, "md", "#FFFFFF", bold=True, flex=1), lv]},
     ]
     if sub:
         contents.append(_text(sub, "xs", "#E5E7EB"))
@@ -169,54 +171,119 @@ def message(alt: str, bub: dict) -> dict:
 # ───── 文章をそのままカードに（個別の表を作っていない通知の共通の見た目・2026-10-19） ─────
 _ACT_MARKS = ("⚠", "🔴", "❌", "✖", "NG", "失敗", "止ま", "異常")
 
+# 字下げの決まり（2026-10-22 ユーザー「左インデントを調整するなど全部見直して」→ Fable 相談）：
+# 字の左端を 16px × 段 の列にそろえ、・や→ は左の 16px の溝に置く（折り返した2行目は記号の右から始まる＝ぶら下げ）。
+# 段は box の paddingStart で付ける（offsetStart ははみ出す・全角スペースは字幅が一定でないので使わない）
+STEP = 16                                   # 1段の幅（px）
+_BULLETS = ("・", "-", "•")                 # 「・」として溝に置く記号
+_ARROWS = ("→", "⇒", "└")                  # 子の行の記号（灰色で溝に置き、本文は一段控えめの白）
+
+
+def _indent(raw: str) -> int:
+    """行頭の字下げの量（半角1・全角2）。空行は -1"""
+    if not raw.strip():
+        return -1
+    head = raw[:len(raw) - len(raw.lstrip(" 　"))]
+    return sum(2 if c == "　" else 1 for c in head)
+
+
+def _depth(width: int) -> int:
+    """字下げの量 → 段（0＝字下げなし・1＝半角1〜2・2＝3〜4・3＝それ以上）"""
+    return 0 if width <= 0 else 1 if width <= 2 else 2 if width <= 4 else 3
+
+
+def _row(text: str, depth: int, mark: str = "", color: str = TEXT, size: str = "xs", mark_color: str = TEXT) -> dict:
+    """段つきの1行。mark があれば幅16pxの溝に置き、本文は記号の右で折り返す（ぶら下げ）。
+    mark が無ければ字の左端を段の列にそろえるだけ"""
+    pad = STEP * (max(depth, 1) - 1) if mark else STEP * depth
+    body = _text(text, size, color, flex=1)
+    contents = ([{"type": "box", "layout": "vertical", "width": f"{STEP}px", "flex": 0, "contents": [_text(mark, size, mark_color)]}, body]
+                if mark else [body])
+    box = {"type": "box", "layout": "horizontal", "contents": contents}
+    if pad:
+        box["paddingStart"] = f"{pad}px"
+    return box
+
+
+def _split_title(first: str) -> tuple[str, str]:
+    """1行目 → (見出しの帯の題, 副題)。先頭の絵文字・記号は落とす（札が絵文字の役目を持つ）。
+    【種類】か [種類] があればそれが題。無ければ「（」「：」までを題に、無ければ最初の空白まで（24字まで）"""
+    import re
+    m = re.search(r"[【\[]([^】\]]{1,30})[】\]]", first)
+    if m:
+        rest = (first[:m.start()] + " " + first[m.end():])
+        return m.group(1), re.sub(r"^[^\w\[【（(]+", "", rest.strip()).strip()
+    s = re.sub(r"^[^\w\[【（(]+", "", first.strip())
+    for seps in (("（", "(", "：", ":"), (" ", "　")):
+        # 日付の曜日「10/22(木)」・時刻「13:05」の括弧やコロンでは切らない（直前が数字なら区切りとみなさない）
+        cut = min((i for i, c in enumerate(s[:25]) if c in seps and i > 0 and not s[i - 1].isdigit()), default=-1)
+        if 0 < cut <= 24:
+            return s[:cut].strip(), s[cut:].strip(" 　：:")
+    return (s[:24], s[24:]) if len(s) > 24 else (s, "")
+
 
 def text_card(text: str, route: str = "INVEST", level: str | None = None, title: str | None = None) -> dict:
     """文章を読み取ってカードに並べる。1行目「【種類】残り」→ 見出しの帯、「■」→ 小見出し、「・」→ 横線つきの行、
     「※」→ 注記、「⚠🔴」で始まる行 → 赤い太字、空行 → 区切り。level を渡さなければ ⚠🔴・失敗などの語があれば要対応、
     無ければ報告だけ（送り手が判定を持っているなら必ず渡す）"""
+    import re
     lines = [l.rstrip() for l in str(text).strip().splitlines()]
     first = lines[0] if lines else "通知"
-    sub = ""
-    import re
-    m = re.search(r"[【\[]([^】\]]{1,30})[】\]]", first)        # 【種類】か [種類] が1行目のどこかにあれば見出しにする
-    if m:
-        title = title or m.group(1)
-        sub = (first[:m.start()].strip(" ☀️🔔📣") + " " + first[m.end():].strip()).strip()
-    else:
-        title = title or first[:40]
-        sub = first[40:] if len(first) > 40 else ""
+    t0, sub = _split_title(first)
+    title = title or t0 or first[:24]
     if level is None:
         level = "act" if any(m in text for m in _ACT_MARKS) else "info"
     body: list[dict] = []
-    prev_row = False
     rest = lines[1:]
+    head_depth = -1        # いまの見出しの段（その下の行は少なくとも1段深くする）
+    seen: set[int] = set()  # いまの見出しの下で、行を置いたことのある段（同じ段どうしの間にだけ横線を入れる）
+    parent = 0             # 直前の（→でない）行の段。→の子の行はこれより1段深くする
     for k, raw in enumerate(rest):
         l = raw.strip()
         if not l:
-            prev_row = False
             continue
-        nxt = rest[k + 1] if k + 1 < len(rest) else ""
-        # 字下げしていない行の次に字下げした行が続く＝見出し（朝ブリーフの「📅 今日の予定」など）
-        ind = lambda x: len(x) - len(x.lstrip(" 　")) if x.strip() else -1   # noqa: E731  行頭の字下げの量
-        heading_like = (ind(raw) < ind(nxt) and not l.startswith(("・", "※", "⚠", "🔴", "-", "•")))
-        if l.startswith("■") or l.startswith("◆") or l.startswith("▼") or heading_like:
-            body += section(l.lstrip("■◆▼ ").strip())
-            prev_row = False
+        w = _indent(raw)
+        nxt_w = next((_indent(x) for x in rest[k + 1:] if x.strip()), -1)   # 次の中身のある行の字下げ
+        d = _depth(w)
+        # ── 1行ずつの種類の判定（ここ1か所だけで決める） ──
+        if l.startswith(("■", "◆", "▼")) or (w < nxt_w and not l.startswith(_BULLETS + _ARROWS + ("※",))):
+            # 見出し：■◆▼ か「次の行のほうが深く字下げ」（朝ブリーフの「📅 今日の予定」「⚠️ 期限切れ」など。先頭の絵文字は問わない）
+            name = l.lstrip("■◆▼ ").strip()
+            zero = re.search(r"(^|[^\d])0件", name) is not None                 # 0件の見出しは灰色で軽く
+            if d == 0:
+                if body:
+                    body.append({"type": "separator", "margin": "lg"})
+                hc = MINUS if l[:1] in ("⚠", "🔴") else GRAY if zero else TEXT          # ⚠🔴の見出しは警告の赤のまま
+                body.append(_text(name, "sm", hc, bold=not zero, margin="md"))
+            else:
+                h = _row(name, d, color=GRAY if zero else SUB)
+                h["contents"][-1]["weight"] = "bold"
+                h["margin"] = "md"
+                body.append(h)
+            head_depth, seen = d, set()
         elif l.startswith("※"):
-            body.append(note(l))
-        elif l[:1] in ("⚠", "🔴"):
-            body.append(_text(l, "sm", MINUS, bold=True, margin="md"))
-            prev_row = False
-        elif l[:1] in ("・", "-", "•") or raw.startswith((" ", "　")):
-            if prev_row:
-                body.append(rule())
-            indent = raw.startswith(("　　", "    ")) or (raw.startswith(("　", "  ")) and l[:1] not in ("・", "-", "•"))
-            body.append(_text(l, "xxs" if indent else "xs", SUB if indent else TEXT,
-                              margin="none" if indent else None))
-            prev_row = True
+            body.append(dict(note(l), margin="xs"))                           # 注記は直前の行にくっつける
+        elif w == 0 and l[:1] in ("⚠", "🔴"):
+            body.append(_text(l, "sm", MINUS, bold=True, margin="md"))          # 警告の赤太字は字下げなしの行だけ
+            seen = set()
+        elif w > 0 or l.startswith(_BULLETS + _ARROWS):
+            rd = max(d, head_depth + 1, 1)
+            if l.startswith(_ARROWS):
+                rd = max(rd, parent + 1)                                     # →は直前の親の行より1段深く
+                r = _row(l[1:].strip(), rd, mark=l[0], color=SUB, size="xs", mark_color=GRAY)
+            elif l.startswith(_BULLETS):
+                r = _row(l[1:].strip(), rd, mark="・")
+            else:
+                r = _row(l, rd, color=TEXT if not re.match(r"[\w（(]", l) else SUB)   # 絵文字で始まる行は本文の白、文章は控えめの白
+            if rd in seen and not l.startswith(_ARROWS):
+                body.append(rule())                                           # 同じ段の行どうしの間だけ横線
+            seen = {s for s in seen if s <= rd} | {rd}                       # 深い段の記録は親が変わったら忘れる
+            if not l.startswith(_ARROWS):
+                parent = rd
+            body.append(r)
         else:
-            body.append(_text(l, "sm", TEXT, bold=not body))      # 本文の最初の行は結論として太字
-            prev_row = False
+            body.append(_text(l, "sm", TEXT, bold=not body, margin=None if not body else "md"))   # 本文の最初の行は結論として太字
+            head_depth, seen = -1, set()
     if not body:
         body.append(_text(sub or first, "sm", TEXT))
     return message(alt_of(text), bubble(header(title, route, level, sub), body))
