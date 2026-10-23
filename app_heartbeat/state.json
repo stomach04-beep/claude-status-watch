@@ -1,5 +1,5 @@
 {
-  "stale_fired": true,
-  "last_alert_at": "2026-10-24T03:29:45+09:00",
+  "stale_fired": false,
+  "last_alert_at": null,
   "missing_fired": false
 }
