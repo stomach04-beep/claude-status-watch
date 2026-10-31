@@ -3,6 +3,7 @@ name: "Claude Release Watch (毎時・Claude Code/モデル/アプリの新版�
 # Claude Code 本体の版・モデルの顔ぶれ・API の更新（モデル関連だけ）・Claude アプリの更新を毎時読み、
 # 前回の控え（release_watch/state.json）と違ったときだけ🔧システム見張りの LINE に知らせる。
 # 2026-10-21 新設（ユーザー「Claude の新しい version が来たら通知。モデルのアップデートも含めて」）。
+# 2026-10-31 絞り込み：細かい更新は黙り、新モデルの発表・モデルの廃止/利用停止/再開・Claude Code の大きな版だけ知らせる。
 #
 # 【安全境界】読むのは公開ページだけ（npm・GitHub の CHANGELOG・platform.claude.com・support.claude.com）。
 #             書くのは release_watch/state.json だけ。

@@ -10,6 +10,12 @@ release_watch.py ― Claude の「新しい版」と「モデルの更新」を�
     4. Claude アプリ（デスクトップ・Web・スマホ）の更新 … ヘルプセンターのリリースノートの一番新しい日付
   前回の控え（state.json）と比べ、変わったものだけを1枚のカードにまとめて送る。変化が無ければ黙る。
 
+【知らせる範囲】2026-10-31 絞り込み（ユーザー「細かいアプデは不要。モデルのグレードが上がったとき・使えなくなったときだけ」）
+  1. Claude Code 本体 … 大きな版（2.x → 3.x）のときだけ。毎日の 2.1.315 → 2.1.316 は黙って控えだけ進める
+  2. モデルの顔ぶれ   … 増減のとき（今までどおり）
+  3. API の更新情報   … 新モデルの発表／モデルの廃止予定・廃止／利用停止・再開だけ（値下げ・提供先の追加・fast mode 等は黙る）
+  4. アプリの更新情報 … モデルの利用停止・再開だけ（新機能の話は黙る。新モデルの発表は 3 と重なるので出さない）
+
 【初回】控えが無い見張り先は「今の値を控えるだけ」で知らせない（一度に4通の「新版」が飛ばないように）。
 【取得失敗】その見張り先は前回の値のまま（失敗を「変化」と数えない）。連続 FETCH_FAIL_NOTIFY_AT 回で1回だけ知らせ、
            戻ったときも1回知らせる。
@@ -66,6 +72,7 @@ FETCH_TIMEOUT_SEC = 20     # 1回あたりのタイムアウト
 FETCH_FAIL_NOTIFY_AT = 6   # 毎時なので連続6回（約6時間）取れなかったら1回だけ知らせる
 MAX_BULLETS = 4            # 1つの更新に載せる英語の箇条書きの数
 MAX_BULLET_CHARS = 110     # 箇条書き1つの長さ（長いと LINE のカードが読みにくい）
+NOTES_LOOKBACK = 30        # API・アプリの更新情報で遡る節（日付）の数。絞り込みが厳しいので、見張りが止まっていた間の発表も拾えるよう広めに
 
 # 日本語の要約（Claude API）
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
@@ -184,13 +191,39 @@ def read_app_notes() -> dict | None:
 READERS = {"cli": read_cli, "models": read_models, "api": read_api_notes, "app": read_app_notes}
 
 
-# API の更新情報は開発者向けの細かい話が多いので、モデルの話（発表・値下げ・廃止など）だけ知らせる
-MODEL_WORDS = re.compile(r"Claude (Fable|Opus|Sonnet|Haiku|Mythos)\b|claude-[a-z]+-\d", re.I)
-MODEL_EVENTS = re.compile(r"launch|releas|introduc|availab|retir|deprecat|price|pricing|discontinu", re.I)
+# 2026-10-31 絞り込み（ユーザー「細かいアプデは不要。モデルのグレードが上がったときと、使えなくなったときだけ」）
+#   知らせるのは「モデルそのもの」の出来事だけ：新モデルの発表／廃止予定・廃止／利用停止／利用再開。
+#   値下げ・提供先（Bedrock 等）の追加・fast mode などの機能単位の廃止・試験提供の対応モデル追加は黙る。
+_FAMILY = r"Claude (?:Fable|Opus|Sonnet|Haiku|Mythos)"
+MODEL_EVENT_PATTERNS = {
+    # 新モデル：API「We’ve launched Claude Opus 5.5 (claude-opus-5-5)」／アプリ「Claude Opus 5.5 launch」
+    "new": re.compile(rf"launched {_FAMILY} [\d.]+|^{_FAMILY}[\w .]*\blaunch\s*$", re.I),
+    # 使えなくなる：「deprecation of the Claude Sonnet 4.5 model」「retired the Claude Opus 4.1 model」
+    #               「Access to Claude Fable 5 ... suspended」
+    "stop": re.compile(rf"(?:deprecat\w*|retire\w*|discontinu\w*)(?: of)? the {_FAMILY} [\d.]+[^.]{{0,40}}? model"
+                       rf"|access to {_FAMILY}[^.]{{0,60}}?\bsuspended|suspend\w* access to {_FAMILY}", re.I),
+    # また使える：「We’ve restored access to Claude Fable 5」「Access to Claude Fable 5 ... restored」
+    "back": re.compile(rf"restor\w* access to {_FAMILY}|access to {_FAMILY}[^.]{{0,60}}?\brestored", re.I),
+}
+EVENT_MARK = {"new": "🆕", "stop": "⛔", "back": "✅"}
+
+
+def model_event(bullet: str) -> str | None:
+    """箇条書き1つがモデルそのものの出来事なら種類（new/stop/back）を返す。それ以外は None"""
+    text = short(bullet, 10**6)              # 「**Claude Opus 5.5**」の太字記号・リンク記法を外してから見る
+    for kind in ("stop", "back", "new"):     # 「後継に移行して」と書かれた廃止の文を「新」と読まないよう廃止を先に見る
+        if MODEL_EVENT_PATTERNS[kind].search(text):
+            return kind
+    return None
 
 
 def is_model_news(bullet: str) -> bool:
-    return bool(MODEL_WORDS.search(bullet) and MODEL_EVENTS.search(bullet))
+    return model_event(bullet) is not None
+
+
+def major(ver) -> str:
+    """版番号の先頭（2.1.316 → "2"）。読めなければ空文字"""
+    return str(ver or "").split(".")[0]
 
 
 # ─────────────────────────────────────────────
@@ -211,7 +244,9 @@ def diff_source(key: str, prev_val, cur: dict) -> list[str]:
         return []
     out: list[str] = []
     if key == "cli":
-        out.append(f"■ Claude Code 本体 {prev_val} → {val}")
+        if major(val) == major(prev_val):
+            return []                          # 2.1.315→2.1.316 のような毎日の細かい版は黙って控えだけ進める
+        out.append(f"■ Claude Code 本体の大きな版 {prev_val} → {val}")
         secs = newer_sections(cur["sections"], prev_val) or [(val, [])]
         for ver, bullets in secs:
             if len(secs) > 1:
@@ -226,21 +261,28 @@ def diff_source(key: str, prev_val, cur: dict) -> list[str]:
         removed = [m for m in (prev_val or []) if m not in val]
         out.append("■ モデルの顔ぶれが変わりました")
         out += [f"・🆕 {names.get(m, m)}（{m}）" for m in added]
+        # 一覧から外れた＝最新の顔ぶれから外れただけ（後継が出た印。使えなくなる日は API 側の廃止の知らせで出る）
         out += [f"・一覧から外れた：{m}" for m in removed]
         out.append(f"※ {MODELS_PAGE}")
     elif key == "api":
-        hits = [(d, [b for b in bs if is_model_news(b)]) for d, bs in newer_sections(cur["sections"], prev_val, limit=6)]
+        hits = [(d, [b for b in bs if is_model_news(b)]) for d, bs in newer_sections(cur["sections"], prev_val, limit=NOTES_LOOKBACK)]
         hits = [(d, bs) for d, bs in hits if bs]
         if not hits:
             return []                          # モデルの話が無い更新は黙って控えだけ進める
-        out.append("■ API の更新（モデル関連）")
+        out.append("■ モデルの発表・廃止（API の更新情報）")
         for d, bs in hits:
-            out += [f"・{d}：{short(b)}" for b in bs[:MAX_BULLETS]]
+            out += [f"・{EVENT_MARK[model_event(b)]} {d}：{short(b)}" for b in bs[:MAX_BULLETS]]
         out.append(f"※ {API_NOTES_PAGE}")
     elif key == "app":
-        out.append("■ Claude アプリの更新")
-        for d, bs in newer_sections(cur["sections"], prev_val):
-            out += [f"・{d}：{b}" for b in bs[:MAX_BULLETS]] or [f"・{d}"]
+        # アプリ側は「利用停止・再開」だけ（新モデルの発表は API 側と同じ日に出るので重ねない。新機能の話は黙る）
+        hits = [(d, [b for b in bs if model_event(b) in ("stop", "back")])
+                for d, bs in newer_sections(cur["sections"], prev_val, limit=NOTES_LOOKBACK)]
+        hits = [(d, bs) for d, bs in hits if bs]
+        if not hits:
+            return []
+        out.append("■ Claude アプリでのモデルの利用停止・再開")
+        for d, bs in hits:
+            out += [f"・{EVENT_MARK[model_event(b)]} {d}：{b}" for b in bs[:MAX_BULLETS]]
         out.append(f"※ {APP_NOTES_PAGE}")
     return out
 
@@ -253,9 +295,10 @@ def source_material(key: str, prev_val, cur: dict) -> str:
         secs = newer_sections(cur["sections"], prev_val)
     elif key == "api":
         secs = [(d, [b for b in bs if is_model_news(b)])
-                for d, bs in newer_sections(cur["sections"], prev_val, limit=6)]
-    else:
-        secs = newer_sections(cur["sections"], prev_val)
+                for d, bs in newer_sections(cur["sections"], prev_val, limit=NOTES_LOOKBACK)]
+    else:                                      # app：カードと同じく利用停止・再開の行だけ
+        secs = [(d, [b for b in bs if model_event(b) in ("stop", "back")])
+                for d, bs in newer_sections(cur["sections"], prev_val, limit=NOTES_LOOKBACK)]
     parts = []
     for head, bullets in secs:
         if bullets:
