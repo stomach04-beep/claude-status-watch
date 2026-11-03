@@ -1,7 +1,7 @@
 {
   "cli": {
     "fail": 0,
-    "value": "2.1.316"
+    "value": "2.1.317"
   },
   "models": {
     "fail": 0,
@@ -14,7 +14,7 @@
   },
   "api": {
     "fail": 0,
-    "value": "October 30, 2026"
+    "value": "November 2, 2026"
   },
   "app": {
     "fail": 0,
