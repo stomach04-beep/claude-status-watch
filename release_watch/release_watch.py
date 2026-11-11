@@ -8,6 +8,10 @@ release_watch.py ― Claude の「新しい版」と「モデルの更新」を�
     2. モデルの顔ぶれ             … モデル一覧ページの表「Claude API ID」の行。増えた＝新モデル、消えた＝一覧から外れた
     3. API（Claude Platform）の更新 … リリースノートの一番新しい日付の節（新モデル発表・値下げ・廃止予定もここに出る）
     4. Claude アプリ（デスクトップ・Web・スマホ）の更新 … ヘルプセンターのリリースノートの一番新しい日付
+    5. 使用上限のリセットの配布（2026-11-11 追加・ユーザー「トークンのリセットが新たに配布されたら LINE で」）
+       … 追跡サイト claude-resets.com の JSON。公式の告知は X だけで機械で読めないため、告知を集めている
+         非公式サイトを読む（カードには原文の X の URL を必ず添える）。全員の枠をその場で戻すリセットと、
+         自分で好きなときに使う「貯めておける」リセットの両方。上限そのものの変更（policy）は対象外
   前回の控え（state.json）と比べ、変わったものだけを1枚のカードにまとめて送る。変化が無ければ黙る。
 
 【知らせる範囲】2026-10-31 絞り込み（ユーザー「細かいアプデは不要。モデルのグレードが上がったとき・使えなくなったときだけ」）
@@ -62,6 +66,10 @@ API_NOTES_URL = "https://platform.claude.com/docs/en/release-notes/overview.md"
 API_NOTES_PAGE = "https://platform.claude.com/docs/en/release-notes/overview"
 APP_NOTES_URL = "https://platform.claude.com/docs/en/release-notes/claude-apps.md"   # ヘルプセンターへ転送される
 APP_NOTES_PAGE = "https://support.claude.com/en/articles/12138966-release-notes"
+# 使用上限のリセットの配布（2026-11-11 追加）。公式は X（@ClaudeDevs 等）でしか告知せず、X は機械で読めないため、
+# 告知を集めて JSON で公開している追跡サイト claude-resets.com を読む（非公式。原文の X の URL を必ず添える）
+RESETS_URL = "https://claude-resets.com/data/resets.json"
+RESETS_PAGE = "https://claude-resets.com/"
 LINE_API_URL = "https://api.line.me/v2/bot/message/push"
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -89,6 +97,7 @@ SOURCE_JA = {
     "models": "モデルの顔ぶれ",
     "api": "API の更新情報",
     "app": "Claude アプリの更新情報",
+    "resets": "使用上限のリセットの配布",
 }
 
 JST = timezone(timedelta(hours=9))
@@ -188,7 +197,30 @@ def read_app_notes() -> dict | None:
     return {"value": sections[0][0], "sections": sections} if sections else None
 
 
-READERS = {"cli": read_cli, "models": read_models, "api": read_api_notes, "app": read_app_notes}
+def read_resets() -> dict | None:
+    """使用上限のリセットの配布：追跡サイトの JSON から Claude の「リセット」の告知だけを取る。
+    kind=reset（全員の枠をその場で戻す）と resetType=banked（自分で好きなときに使う貯めておけるリセット）が対象。
+    kind=policy（上限そのものを上げ下げしただけ・枠は戻らない）は対象外。
+    value は告知 ID の一覧（並べ替え済み）。前回の控えに無い ID＝新しく配られたリセット"""
+    raw = fetch(RESETS_URL)
+    try:
+        events = json.loads(raw or "")["providers"]["claude"]["events"]
+    except (ValueError, KeyError, TypeError):
+        return None
+    if not isinstance(events, list):
+        return None
+    items = {}
+    for e in events:
+        if not isinstance(e, dict) or e.get("kind") != "reset" or not e.get("id"):
+            continue
+        items[str(e["id"])] = e
+    if not items:
+        return None                            # 1件も無い＝形が変わった（変化とは数えない）
+    return {"value": sorted(items), "items": items}
+
+
+READERS = {"cli": read_cli, "models": read_models, "api": read_api_notes, "app": read_app_notes,
+           "resets": read_resets}
 
 
 # 2026-10-31 絞り込み（ユーザー「細かいアプデは不要。モデルのグレードが上がったときと、使えなくなったときだけ」）
@@ -229,6 +261,39 @@ def major(ver) -> str:
 # ─────────────────────────────────────────────
 # 2) 前回の控えと比べる（新しい節を前回の鍵の手前まで集める）
 # ─────────────────────────────────────────────
+def _jst(iso: str | None, fmt: str = "%m/%d %H:%M") -> str:
+    """「2026-11-10T21:59:58Z」→ 日本時間の「11/11 06:59」。読めなければ空文字"""
+    try:
+        return datetime.fromisoformat(str(iso).replace("Z", "+00:00")).astimezone(JST).strftime(fmt)
+    except (ValueError, TypeError):
+        return ""
+
+
+def new_resets(prev_val, cur: dict) -> list[dict]:
+    """前回の控えに無いリセットの告知を古い順に返す"""
+    seen = set(prev_val or [])
+    fresh = [e for i, e in cur["items"].items() if i not in seen]
+    return sorted(fresh, key=lambda e: str(e.get("date", "")))
+
+
+def reset_lines(e: dict) -> list[str]:
+    """リセットの告知1件をカードの行にする（英語の説明は要約が日本語に置き換える）"""
+    banked = e.get("resetType") == "banked"
+    kind = "🎁 自分で使うリセット（貯めておける）" if banked else "🔄 全員の枠をその場でリセット"
+    out = [f"・{kind}　告知 {_jst(e.get('date'))}"]
+    if e.get("scope"):
+        out.append(f"・対象：{e['scope']}")
+    if banked:
+        until = _jst(e.get("usableUntil"), "%Y/%m/%d %H:%M")
+        out.append(f"・使える期限：{until}（日本時間）" if until else "・使える期限：告知を確認")
+        out.append("・使い方：claude.ai の 設定 → 使用状況 の「リセット」")
+    if e.get("note"):
+        out.append(f"・{short(e['note'], 160)}")
+    if e.get("url"):
+        out.append(f"※ 原文 {e['url']}")
+    return out
+
+
 def newer_sections(sections: list, prev_key: str, limit: int = 3) -> list:
     """新しい順の節から、前回の鍵より新しいものを最大 limit 個返す。前回の鍵が見当たらなければ先頭1個だけ"""
     keys = [k for k, _ in sections]
@@ -284,6 +349,16 @@ def diff_source(key: str, prev_val, cur: dict) -> list[str]:
         for d, bs in hits:
             out += [f"・{EVENT_MARK[model_event(b)]} {d}：{b}" for b in bs[:MAX_BULLETS]]
         out.append(f"※ {APP_NOTES_PAGE}")
+    elif key == "resets":
+        fresh = new_resets(prev_val, cur)
+        if not fresh:
+            return []                          # 古い告知が消えただけ等は黙って控えだけ進める
+        out.append("■ 使用上限のリセットが配られました")
+        for e in fresh[:MAX_BULLETS]:
+            out += reset_lines(e)
+        if len(fresh) > MAX_BULLETS:
+            out.append(f"・ほか{len(fresh) - MAX_BULLETS}件")
+        out.append(f"※ 一覧 {RESETS_PAGE}（非公式の追跡サイト）")
     return out
 
 
@@ -291,6 +366,9 @@ def source_material(key: str, prev_val, cur: dict) -> str:
     """要約に渡す英語の原文（カード用に4件・110文字で切る前の箇条書き）。diff_source と同じ節の選び方をする"""
     if key == "models":
         return ""                              # 顔ぶれの増減はカードの行そのもので足りる
+    if key == "resets":                        # 告知の英語の説明だけを渡す（種類・対象・期限はカードの行で出す）
+        return "\n".join(f"- {short(e.get('note', ''), 400)}"
+                         for e in new_resets(prev_val, cur)[:MAX_BULLETS] if e.get("note"))
     if key == "cli":
         secs = newer_sections(cur["sections"], prev_val)
     elif key == "api":
@@ -422,7 +500,15 @@ def merge_summary(block: list[str], summary: list[str] | None) -> list[str]:
     """1つの ■ のまとまりに要約を差し込む。■見出しと ※URL は残し、英語の箇条書きを日本語の要約に置き換える"""
     if not summary:
         return block
+    if block[0].startswith("■ 使用上限のリセット"):
+        # リセットは種類・対象・期限・使い方の行（日本語で作った行）を残し、英語の説明の行だけを要約に置き換える
+        keep = [l for l in block[1:] if l.startswith(RESET_KEEP_PREFIXES)]
+        return [block[0], *keep, *[f"・{s}" for s in summary], *[l for l in block if l.startswith("※ 一覧")]]
     return [block[0], *[f"・{s}" for s in summary], *[l for l in block if l.startswith("※")]]
+
+
+# リセットのカードで要約に置き換えずに残す行の頭（reset_lines が作る日本語の行と原文の URL）
+RESET_KEEP_PREFIXES = ("・🎁", "・🔄", "・対象：", "・使える期限：", "・使い方：", "※ 原文")
 
 
 # ─────────────────────────────────────────────
@@ -512,11 +598,15 @@ def main() -> int:
             notes.append(f"・{SOURCE_JA[key]}がまた読めるようになりました")
         ent["fail"] = 0
         current[key] = cur
-        log(f"{SOURCE_JA[key]}：{cur['value']}")
+        log(f"{SOURCE_JA[key]}：{len(cur['value'])}件" if key == "resets" else f"{SOURCE_JA[key]}：{cur['value']}")
 
     if os.environ.get("FORCE_TEST") == "1":
-        body = [f"・{SOURCE_JA[k]}：{', '.join(c['value']) if isinstance(c['value'], list) else c['value']}"
-                for k, c in current.items()]
+        def _show(k: str, c: dict) -> str:
+            if k == "resets":                  # 告知 ID の羅列は読めないので件数と最新の日付だけ
+                last = max((str(e.get("date", "")) for e in c["items"].values()), default="")
+                return f"{len(c['value'])}件（最新 {_jst(last, '%Y/%m/%d')}）"
+            return ", ".join(c["value"]) if isinstance(c["value"], list) else str(c["value"])
+        body = [f"・{SOURCE_JA[k]}：{_show(k, c)}" for k, c in current.items()]
         ok = send_line("\n".join([f"【Claude 新版の見張り】配線テスト {now:%m/%d %H:%M}", "いま控えている版", *body]))
         return 0 if ok or os.environ.get("DRY_RUN") == "1" else 1
 
@@ -552,9 +642,12 @@ def main() -> int:
         return 0 if ok or os.environ.get("DRY_RUN") == "1" else 1
 
     if lines or notes:
-        level_mark = "🆕" if lines else "⚠"
-        text = "\n".join([f"{level_mark}【Claude 新版】{now:%m/%d %H:%M}",
-                          "新しい版・モデルの更新が出ました" if lines else "見張り先が読めません",
+        only_reset = bool(blocks) and all(b[0].startswith("■ 使用上限のリセット") for b in blocks)
+        level_mark = ("🎁" if only_reset else "🆕") if lines else "⚠"
+        title = "Claude 使用上限のリセット" if only_reset else "Claude 新版"
+        text = "\n".join([f"{level_mark}【{title}】{now:%m/%d %H:%M}",
+                          ("使用上限のリセットが配られました" if only_reset else "新しい版・モデルの更新が出ました")
+                          if lines else "見張り先が読めません",
                           "", *lines, *(([""] + notes) if notes else [])])
         if not send_line(text):
             if os.environ.get("DRY_RUN") == "1" or not _clean_secret(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN")):
