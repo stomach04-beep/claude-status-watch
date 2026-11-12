@@ -1,8 +1,23 @@
 {
-  "is_down": false,
-  "since": null,
-  "incidents": {},
-  "degraded": [],
+  "is_down": true,
+  "since": "2026-11-12T17:52:44.926000+00:00",
+  "incidents": {
+    "sqn3fg1l96dl": {
+      "name": "Elevated errors affecting the Microsoft 365 connector",
+      "impact": "major",
+      "status": "identified",
+      "started": "2026-11-12T17:52:44.926Z",
+      "components": [
+        "claude.ai",
+        "Claude Cowork"
+      ],
+      "last_update": "We have identified an issue with an upstream provider affecting the Microsoft 365 connector. Mail, calendar and search tools are failing for most requests, and new connections to the connector may not"
+    }
+  },
+  "degraded": [
+    "Claude Cowork",
+    "claude.ai"
+  ],
   "fetch_fail": 0,
-  "checked_at": "2026-11-12T12:10:36.225032+00:00"
+  "checked_at": "2026-11-12T20:03:12.395659+00:00"
 }
