@@ -1,23 +1,8 @@
 {
-  "is_down": true,
-  "since": "2026-11-12T17:52:44.926000+00:00",
-  "incidents": {
-    "sqn3fg1l96dl": {
-      "name": "Elevated errors affecting the Microsoft 365 connector",
-      "impact": "major",
-      "status": "monitoring",
-      "started": "2026-11-12T17:52:44.926Z",
-      "components": [
-        "claude.ai",
-        "Claude Cowork"
-      ],
-      "last_update": "We're seeing signs of recovery for the Microsoft 365 connector. Claude for Outlook is also recovering. Some SharePoint search requests are still returning errors. Microsoft's incident remains open, so"
-    }
-  },
-  "degraded": [
-    "Claude Cowork",
-    "claude.ai"
-  ],
+  "is_down": false,
+  "since": null,
+  "incidents": {},
+  "degraded": [],
   "fetch_fail": 0,
-  "checked_at": "2026-11-13T16:31:06.512736+00:00"
+  "checked_at": "2026-11-13T22:08:38.155785+00:00"
 }
