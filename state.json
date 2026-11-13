@@ -11,7 +11,7 @@
         "claude.ai",
         "Claude Cowork"
       ],
-      "last_update": "We have identified an issue with an upstream provider affecting the Microsoft 365 connector. Mail, calendar and search tools are failing for most requests, and new connections to the connector may not"
+      "last_update": "This issue is caused by a Microsoft 365 service incident, and mail, calendar and search tools in the Microsoft 365 connector are still failing for most requests. Claude for Outlook remains affected. Y"
     }
   },
   "degraded": [
@@ -19,5 +19,5 @@
     "claude.ai"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-11-12T20:03:12.395659+00:00"
+  "checked_at": "2026-11-13T01:10:12.666513+00:00"
 }
