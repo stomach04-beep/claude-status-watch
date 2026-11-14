@@ -1,8 +1,21 @@
 {
-  "is_down": false,
-  "since": null,
-  "incidents": {},
-  "degraded": [],
+  "is_down": true,
+  "since": "2026-11-14T07:11:36.111000+00:00",
+  "incidents": {
+    "ct4c2pwf2xpj": {
+      "name": "Some users unable to sign up with Apple on the Claude iOS app",
+      "impact": "major",
+      "status": "investigating",
+      "started": "2026-11-14T07:11:36.111Z",
+      "components": [
+        "claude.ai"
+      ],
+      "last_update": "We are investigating an issue with Sign in with Apple on the Claude iOS app, which is mainly affecting new accounts. New users can sign up with Google or email instead. We will provide an update as so"
+    }
+  },
+  "degraded": [
+    "claude.ai"
+  ],
   "fetch_fail": 0,
-  "checked_at": "2026-11-14T02:28:43.380309+00:00"
+  "checked_at": "2026-11-14T09:22:41.472216+00:00"
 }

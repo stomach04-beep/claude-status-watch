@@ -32,3 +32,4 @@
 2026-10-22 22:00,復旧,wj6r4t6mxq1r,Elevated errors affecting Connectors,,,10/22 12:50,9時間10分
 2026-11-13 05:03,発生,sqn3fg1l96dl,Elevated errors affecting the Microsoft 365 connector,major,claude.ai|Claude Cowork,11/13 02:52,
 2026-11-14 07:08,復旧,sqn3fg1l96dl,Elevated errors affecting the Microsoft 365 connector,,,11/13 02:52,28時間15分
+2026-11-14 18:22,発生,ct4c2pwf2xpj,Some users unable to sign up with Apple on the Claude iOS app,major,claude.ai,11/14 16:11,
