@@ -86,7 +86,7 @@ NOTES_LOOKBACK = 30        # API・アプリの更新情報で遡る節（日付
 ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 SUMMARY_MODEL = "claude-haiku-5-5"
 SUMMARY_JOB = "Claude新版の要約"      # 使用ログの「ジョブ」（api_budget の選択肢に無いので「その他」＋備考に入る）
-SUMMARY_DAILY_CAP = 5        # 1日に要約を呼ぶ上限（暴走の歯止め。超えた分は英語のまま送る）
+SUMMARY_DAILY_CAP = 5        # 1日に要約を呼ぶ上限（暴走の歯止め。超えた分は要約なしの日本語で送る）
 SUMMARY_MAX_TOKENS = 1500    # 返事の長さの上限（要約は短いが、切れて JSON が壊れないよう余裕を持たせる）
 SUMMARY_TIMEOUT_SEC = 60     # 1回の呼び出しの絶対上限（応答が返らないまま待ち続けない）
 SUMMARY_SRC_BULLETS = 15     # 要約に渡す英語の箇条書きの数（1つの版あたり）
@@ -282,7 +282,7 @@ def reset_lines(e: dict) -> list[str]:
     kind = "🎁 自分で使うリセット（貯めておける）" if banked else "🔄 全員の枠をその場でリセット"
     out = [f"・{kind}　告知 {_jst(e.get('date'))}"]
     if e.get("scope"):
-        out.append(f"・対象：{e['scope']}")
+        out.append(f"・対象：{scope_ja(e['scope'])}")
     if banked:
         until = _jst(e.get("usableUntil"), "%Y/%m/%d %H:%M")
         out.append(f"・使える期限：{until}（日本時間）" if until else "・使える期限：告知を確認")
@@ -385,7 +385,7 @@ def source_material(key: str, prev_val, cur: dict) -> str:
 
 
 # ─────────────────────────────────────────────
-# 2.5) 日本語の要約（飾り。失敗したら None を返し、呼び出し側は英語のまま送る）
+# 2.5) 日本語の要約（飾り。失敗したら None を返し、呼び出し側は ja_only_block で日本語だけに組み直す）
 # ─────────────────────────────────────────────
 SUMMARY_PROMPT = """あなたは Claude（Anthropic の AI）の更新情報を、日本の一般ユーザー（獣医師・プログラミング初心者）向けに短く紹介する係です。
 下の <block> ごとに、何が変わったかを日本語で2〜3行にまとめてください。
@@ -427,7 +427,7 @@ def summarize_ja(blocks: list[list[str]], materials: list[str], state: dict, now
     """■ のまとまりごとに日本語の要約行を返す（[行のリスト or None, ...]）。全体が使えなければ None"""
     api_key = _clean_secret(os.environ.get("ANTHROPIC_API_KEY"))
     if not api_key:
-        log("要約: ANTHROPIC_API_KEY が無いので英語のまま送ります")
+        log("要約: ANTHROPIC_API_KEY が無いので要約なし（日本語だけの組み直し）で送ります")
         return None
     # 暴走の歯止め：1日の呼び出し回数を控え（state.json）で数える
     ent = state.setdefault("summary", {})
@@ -435,7 +435,7 @@ def summarize_ja(blocks: list[list[str]], materials: list[str], state: dict, now
     if ent.get("date") != today:
         ent["date"], ent["calls"] = today, 0
     if int(ent.get("calls", 0)) >= SUMMARY_DAILY_CAP:
-        log(f"要約: 今日はすでに{SUMMARY_DAILY_CAP}回呼んだので英語のまま送ります（上限）")
+        log(f"要約: 今日はすでに{SUMMARY_DAILY_CAP}回呼んだので要約なし（日本語だけの組み直し）で送ります（上限）")
         return None
     # API クレジットの予算判定（api_budget.py は claud-code の api-budget/api_budget.py の写し・リポジトリ直下）
     budget = None
@@ -447,7 +447,7 @@ def summarize_ja(blocks: list[list[str]], materials: list[str], state: dict, now
         budget = api_budget
         decision = api_budget.check_budget(SUMMARY_JOB)
         if decision.mode == "stop":
-            log(f"要約: 予算が「停止」なので英語のまま送ります（{decision.reason}）")
+            log(f"要約: 予算が「停止」なので要約なし（日本語だけの組み直し）で送ります（{decision.reason}）")
             return None
     except Exception as e:  # noqa: BLE001  予算判定の不具合で通知を落とさない
         log(f"要約: 予算判定できず続行（{e}）")
@@ -464,7 +464,7 @@ def summarize_ja(blocks: list[list[str]], materials: list[str], state: dict, now
     try:
         res = ex.submit(_ask_claude, api_key, prompt).result(timeout=SUMMARY_TIMEOUT_SEC + 15)
     except FutTimeout:
-        log("要約: 時間切れ（英語のまま送ります）")
+        log("要約: 時間切れ（要約なし（日本語だけの組み直し）で送ります）")
         res = None
     finally:
         ex.shutdown(wait=False)
@@ -491,15 +491,73 @@ def summarize_ja(blocks: list[list[str]], materials: list[str], state: dict, now
         rows = [r for r in rows if r][:4]
         out.append(rows if rows and all(JA_CHARS.search(r) for r in rows) else None)   # 日本語でなければ使わない
     if not any(out):
-        log(f"要約: 使える日本語が返らなかった（英語のまま送ります）返事の先頭: {text[:200]!r}")
+        log(f"要約: 使える日本語が返らなかった（要約なし（日本語だけの組み直し）で送ります）返事の先頭: {text[:200]!r}")
         return None
     return out
 
 
+# ─────────────────────────────────────────────
+# 2.6) 要約が無いときの日本語だけの組み直し（2026-11-15 利用者「英語ではなく日本語だけで」）
+#   以前は要約に失敗すると英語の箇条書きをそのまま送っていた。いまは英語の文を出さず、
+#   分類（新モデル／廃止・停止／再開）・モデル名・日付だけを日本語で出し、詳しくは ※ のページへ回す
+# ─────────────────────────────────────────────
+EVENT_JA = {"new": "新しいモデルの発表", "stop": "モデルの廃止・利用停止のお知らせ", "back": "モデルの利用再開"}
+SCOPE_WORD_JA = {"all": "全員", "affected users": "影響を受けた利用者", "paid plans": "有料プランの全員"}
+EVENT_LINE_RE = re.compile(r"^・(?P<mark>\S+) (?P<date>[^：]+)：(?P<text>.*)$")
+
+
+def date_ja(s: str) -> str:
+    """「October 15, 2026」→「2026/10/15」。読めなければ英字を含まないときだけそのまま、含めば空"""
+    for fmt in ("%B %d, %Y", "%b %d, %Y", "%Y-%m-%d"):
+        try:
+            return datetime.strptime(s.strip(), fmt).strftime("%Y/%m/%d")
+        except ValueError:
+            pass
+    return "" if re.search(r"[A-Za-z]", s) else s
+
+
+def scope_ja(s: str) -> str:
+    """リセットの対象（"Pro, Max + Team" など）を日本語に。プラン名は固有名なので英字のまま"""
+    s = str(s).strip()
+    if s.lower() in SCOPE_WORD_JA:
+        return SCOPE_WORD_JA[s.lower()]
+    plans = [p.strip() for p in re.split(r",|\+|\band\b", s) if p.strip()]
+    if plans and all(re.fullmatch(r"(?:Free|Pro|Max|Team|Enterprise|Ultra)(?: \w+)?", p) for p in plans):
+        return "・".join(plans) + " プラン"
+    return "告知を確認"
+
+
+def ja_only_block(block: list[str]) -> list[str]:
+    """要約が無いまとまりを、英語の文を含まない行だけで組み直す"""
+    head, out = block[0], [block[0]]
+    if head.startswith("■ 使用上限のリセット"):
+        out += [l for l in block[1:] if l.startswith(RESET_KEEP_PREFIXES)]
+        out += [l for l in block if l.startswith("※ 一覧")]
+        return out
+    if head.startswith("■ モデルの顔ぶれ"):
+        return block                           # 「🆕 Claude Opus 5.5（claude-opus-5-5）」などモデル名と日本語だけ
+    if head.startswith("■ Claude Code 本体"):
+        n = sum(1 for l in block[1:] if l.startswith("・") and not l.startswith("・ほか"))
+        out.append(f"・変更点の説明は英語のため省略しました（{n}件以上・下のページで確認）" if n
+                   else "・変更点は下のページで確認")
+        return out + [l for l in block if l.startswith("※")]
+    for l in block[1:]:                        # API・アプリの更新情報：「・🆕 October 15, 2026：英語の文」
+        m = EVENT_LINE_RE.match(l)
+        if not m:
+            continue
+        kind = next((k for k, v in EVENT_MARK.items() if v == m.group("mark")), None) or model_event(m.group("text"))
+        names = list(dict.fromkeys(re.findall(rf"{_FAMILY} [\d.]*\d", short(m.group("text"), 10**6))))
+        d = date_ja(m.group("date"))
+        out.append(f"・{EVENT_MARK.get(kind, '・')} {d + '：' if d else ''}{EVENT_JA.get(kind, 'モデルの更新')}"
+                   + (f"（{'、'.join(names)}）" if names else ""))
+    return out + [l for l in block if l.startswith("※")]
+
+
 def merge_summary(block: list[str], summary: list[str] | None) -> list[str]:
-    """1つの ■ のまとまりに要約を差し込む。■見出しと ※URL は残し、英語の箇条書きを日本語の要約に置き換える"""
+    """1つの ■ のまとまりに要約を差し込む。■見出しと ※URL は残し、英語の箇条書きを日本語の要約に置き換える。
+    要約が無いまとまりは英語の文を出さず ja_only_block で組み直す"""
     if not summary:
-        return block
+        return ja_only_block(block)
     if block[0].startswith("■ 使用上限のリセット"):
         # リセットは種類・対象・期限・使い方の行（日本語で作った行）を残し、英語の説明の行だけを要約に置き換える
         keep = [l for l in block[1:] if l.startswith(RESET_KEEP_PREFIXES)]
