@@ -32,6 +32,9 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import status_ja  # noqa: E402  英語の件名・部品名を日本語にする変換表（AI 不使用）
+
 # Windows ローカルで動かしても日本語 print が化けないように
 try:
     sys.stdout.reconfigure(encoding="utf-8")
@@ -177,14 +180,36 @@ def save_state(state: dict) -> None:
     os.replace(tmp, STATE_FILE)
 
 
-def build_messages(prev: dict, cur: dict, now: datetime) -> tuple[list[str], dict]:
-    """前回(prev)と今回(cur)を比べ、送るべき LINE 本文のリストと新しい state を返す。
+def comps_ja(names: list[str]) -> str:
+    """部品名の並びを日本語に（同じ訳が重なれば1つにまとめる）"""
+    out: list[str] = []
+    for n in names:
+        j = status_ja.component_ja(n)
+        if j not in out:
+            out.append(j)
+    return "、".join(out) or "（対象の記載なし）"
+
+
+def incident_url(iid: str) -> str:
+    """障害ごとの公式ページ（スマホのブラウザの翻訳で原文を読める）"""
+    return f"{STATUS_PAGE_URL}/incidents/{iid}" if iid else STATUS_PAGE_URL
+
+
+def recovered_name_ja(inc: dict) -> str:
+    """復旧の知らせに出す件名。訳せなければ対象と開始時刻で見分けられるようにする"""
+    return status_ja.translate_title(inc.get("name", "")) or \
+        f"{comps_ja(inc.get('components') or [])}の障害（{fmt_jst(parse_iso(inc.get('started')))} 開始）"
+
+
+def build_messages(prev: dict, cur: dict, now: datetime) -> tuple[list[tuple[str, str]], dict]:
+    """前回(prev)と今回(cur)を比べ、送るべき LINE 本文（本文, カードの札）のリストと新しい state を返す。
+    札は line_flex の level（act=要対応・look=見ておく・info=報告だけ）。本文の語で色が変わらないよう明示する。
 
     state の形:
       {"is_down": bool, "since": ISO文字列 or None, "incidents": {id: {impact,...}},
        "degraded": [...], "fetch_fail": int, "checked_at": ISO}
     """
-    msgs: list[str] = []
+    msgs: list[tuple[str, str]] = []
     prev_incs: dict = prev.get("incidents", {}) or {}
     cur_incs: dict = cur["incidents"]
 
@@ -197,40 +222,41 @@ def build_messages(prev: dict, cur: dict, now: datetime) -> tuple[list[str], dic
             head = "⚠️ Claude 障害が悪化"
         else:
             continue  # 変化なし（status が investigating→monitoring になった程度では鳴らさない）
-        comps = "、".join(inc["components"]) or "（対象未記載）"
-        body = (
-            f"{head}（影響度: {IMPACT_JA.get(inc['impact'], inc['impact'])}）\n"
-            f"件名: {inc['name']}\n"
-            f"対象: {comps}\n"
-            f"開始: {fmt_jst(parse_iso(inc['started']))} JST\n"
-        )
-        if inc["last_update"]:
-            body += f"最新: {inc['last_update']}\n"
-        body += STATUS_PAGE_URL
-        msgs.append(body)
+        # 2026-11-15 日本語だけにする（利用者「英語ではなく日本語で」）。英語の原文は state.json と CSV にだけ残す
+        title = status_ja.translate_title(inc["name"])
+        comp_line = f"対象: {comps_ja(inc['components'])}"
+        lines = [f"{head}（影響度: {IMPACT_JA.get(inc['impact'], inc['impact'])}）"]
+        if title:
+            lines += [f"内容: {title}", comp_line]
+        else:
+            # 型の分からない件名は半端に訳さない。通知一覧の1文（先頭2行）で中身が分かるよう対象を2行目に置く
+            lines += [comp_line, "内容: 公式の件名が見慣れない型のため訳せませんでした（下のページで確認）"]
+            log(f"件名を訳せなかった（辞書に足す候補）: {inc['name']}")
+        lines += [f"状況: {status_ja.status_ja(inc['status'])}",
+                  f"開始: {fmt_jst(parse_iso(inc['started']))} 日本時間",
+                  f"※ 詳細 {incident_url(iid)}"]
+        msgs.append(("\n".join(lines), "act"))
 
     # ── incident は無いが部品だけ黄色（degraded）になった場合 ──
     prev_deg = set(prev.get("degraded", []) or [])
     cur_deg = set(cur["degraded"])
     if not cur_incs and cur_deg and cur_deg - prev_deg:
-        msgs.append(
+        msgs.append((
             "⚠️ Claude 一部機能が不調（正式な障害告知はまだ）\n"
-            f"対象: {'、'.join(sorted(cur_deg))}\n"
-            f"検知: {fmt_jst(now)} JST\n{STATUS_PAGE_URL}"
-        )
+            f"対象: {comps_ja(sorted(cur_deg))}\n"
+            f"検知: {fmt_jst(now)} 日本時間\n※ 詳細 {STATUS_PAGE_URL}", "look"))
 
     # ── 復旧（前回は障害中 → 今回は全部正常）──
     if prev.get("is_down") and not cur["is_down"]:
         since = parse_iso(prev.get("since"))
         # 復旧時刻はページ側の resolved_at のほうが正確だが、
         # summary.json には解決済み incident が残らないので「今回の観測時刻」で代用する
-        names = "／".join(v.get("name", "") for v in prev_incs.values()) or "（部品の不調）"
-        msgs.append(
+        names = "／".join(recovered_name_ja(v) for v in prev_incs.values()) or "部品の不調"
+        msgs.append((
             "✅ Claude 復旧\n"
-            f"件名: {names}\n"
-            f"発生: {fmt_jst(since)} JST → 復旧確認: {fmt_jst(now)} JST\n"
-            f"所要: 約{fmt_duration(now - since if since else None)}\n{STATUS_PAGE_URL}"
-        )
+            f"内容: {names}\n"
+            f"発生: {fmt_jst(since)} → 復旧確認: {fmt_jst(now)}（日本時間）\n"
+            f"所要: 約{fmt_duration(now - since if since else None)}\n※ 詳細 {STATUS_PAGE_URL}", "info"))
 
     # ── 新しい state ──
     if cur["is_down"]:
@@ -296,7 +322,7 @@ def log_rows(prev: dict, new_state: dict, now: datetime) -> list[list[str]]:
 # ─────────────────────────────────────────────
 # 5) LINE 送信（戻り値を必ず見る＝虚偽ログ防止）
 # ─────────────────────────────────────────────
-def _line_messages(text, route):
+def _line_messages(text, route, level=None):
     """LINE の messages：文章＋共通のカード（色の帯・横線）。line_flex.py は claud-code の line-accounts/line_flex.py の写し
     （2026-10-19）。部品が読めない・カードが大きすぎるときは文章だけ（通知そのものは落とさない）"""
     import os as _os
@@ -310,20 +336,21 @@ def _line_messages(text, route):
         d = _os.path.dirname(d)
     try:
         import line_flex
-        return line_flex.messages(text, route)
+        return line_flex.messages(text, route, level)
     except Exception:  # noqa: BLE001
         return [{"type": "text", "text": str(text)[:4800]}]
 
 
-def send_line(text: str) -> bool:
-    """LINE Messaging API に push。成功なら True。DRY_RUN や未設定なら本文を出して False"""
+def send_line(text: str, level: str | None = None) -> bool:
+    """LINE Messaging API に push。成功なら True。DRY_RUN や未設定なら本文を出して False。
+    level はカードの札（None なら本文の語から自動判定）"""
     token = _clean_secret(os.environ.get("LINE_CHANNEL_ACCESS_TOKEN"))
     user_id = _clean_secret(os.environ.get("LINE_USER_ID"))
     if os.environ.get("DRY_RUN") == "1" or not token or not user_id:
         why = "DRY_RUN" if os.environ.get("DRY_RUN") == "1" else "LINE secrets 未設定"
         log(f"（{why}のため送信せず）本文↓\n{text}")
         return False
-    payload = json.dumps({"to": user_id, "messages": _line_messages(text[:4800], "SYSTEM")}).encode("utf-8")
+    payload = json.dumps({"to": user_id, "messages": _line_messages(text[:4800], "SYSTEM", level)}).encode("utf-8")
     req = urllib.request.Request(
         LINE_API_URL, data=payload, method="POST",
         headers={"Content-Type": "application/json", "Authorization": f"Bearer {token}"},
@@ -349,7 +376,7 @@ def main() -> int:
 
     # 配線テスト（workflow_dispatch から手で叩く用）
     if os.environ.get("FORCE_TEST") == "1":
-        ok = send_line(f"🔧 claude-status-watch 配線テスト\n{fmt_jst(now)} JST に送信。障害監視は20分おきに稼働中。\n{STATUS_PAGE_URL}")
+        ok = send_line(f"🔧 Claude 障害の見張り 配線テスト\n{fmt_jst(now)}（日本時間）に送信。障害の見張りは20分おきに動いています。\n※ 公式ページ {STATUS_PAGE_URL}", "info")
         return 0 if ok or os.environ.get("DRY_RUN") == "1" else 1
 
     data = fetch_summary()
@@ -361,8 +388,8 @@ def main() -> int:
         save_state(prev)
         log(f"ステータスページ取得不可（連続{fails}回）")
         if fails == FETCH_FAIL_NOTIFY_AT:
-            send_line(f"⚠️ status.claude.com に{fails}回連続で届きません（{fmt_jst(now)} JST）。\n"
-                      f"Claude本体の障害かは不明。手で確認→ {STATUS_PAGE_URL}")
+            send_line(f"⚠️ Claude の公式の状況ページに{fails}回続けて届きません（{fmt_jst(now)} 日本時間）。\n"
+                      f"Claude 本体の障害かは分かりません。\n※ 手で確認 {STATUS_PAGE_URL}", "look")
         return 2  # 取れなかった回は失敗として残す（緑にしない）
 
     cur = summarize(data)
@@ -370,11 +397,11 @@ def main() -> int:
 
     msgs, new_state = build_messages(prev, cur, now)
     if prev.get("fetch_fail", 0) >= FETCH_FAIL_NOTIFY_AT:
-        msgs.insert(0, f"ℹ️ status.claude.com に再び届くようになりました（{fmt_jst(now)} JST）")
+        msgs.insert(0, (f"ℹ️ Claude の公式の状況ページに再び届くようになりました（{fmt_jst(now)} 日本時間）", "info"))
 
     sent_all = True
-    for m in msgs:
-        if not send_line(m):
+    for m, level in msgs:
+        if not send_line(m, level):
             sent_all = False
     if not msgs:
         log("変化なし（通知なし）")
