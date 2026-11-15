@@ -115,7 +115,10 @@ TITLE_PATTERNS = [
     (r"^Delays? in " + _X + "$", "{x}の遅れ"),
     (r"^Delayed (?P<what>.+?) on (?P<where>.+)$", "{where}で{what}の遅れ"),
     (r"^Delayed " + _X + "$", "{x}の遅れ"),
-    (r"^(?:Partial |Major )?(?:Service )?(?:disruption|outage) (?:on|of|for|affecting|with|in) " + _X + "$", "{x}が停止"),
+    # 停止の程度は語のとおりに訳し分ける（Partial を落として「停止」と書くと実際より重く見える・2026-11-15 点検の指摘）
+    (r"^Partial (?:service )?outage (?:on|of|for|affecting|with|in) " + _X + "$", "{x}が一部停止"),
+    (r"^(?:Major |Full |Complete )?(?:service )?outage (?:on|of|for|affecting|with|in) " + _X + "$", "{x}が停止"),
+    (r"^(?:Partial |Major )?(?:service )?disruption (?:on|of|for|affecting|with|in) " + _X + "$", "{x}でサービスに支障"),
     (r"^Errors? (?:on|for|affecting|with|in) " + _X + "$", "{x}でエラー"),
     (r"^Issues? (?:on|for|affecting|with|in) " + _X + "$", "{x}で不具合"),
     (r"^" + _X + r" (?:is |are )?(?:unavailable|down)$", "{x}が使えない"),
@@ -285,7 +288,16 @@ SAMPLE_TITLES = [
     "Elevated errors on claude.ai, Claude Cowork and the Claude API",
     "Elevated purchasing errors on claude.ai",
     "Service disruption on Claude services",
+    "Partial outage on claude.ai",
+    "Major outage affecting the Claude API",
 ]
+# 訳の中身まで確かめる例（程度の語を落とさない・範囲の限定を残す）
+EXPECT = {
+    "Partial outage on claude.ai": "claude.aiが一部停止",
+    "Major outage affecting the Claude API": "Claude APIが停止",
+    "Service disruption on Claude services": "Claude の各サービスでサービスに支障",
+    "Elevated latency on the Claude API for some users": "Claude APIで応答の遅れ（一部の利用者）",
+}
 # 訳せてはいけない（半訳を出さず None を返すべき）件名
 MUST_FAIL = [
     "Elevated errors when using extended thinking on long prompts",
@@ -300,6 +312,10 @@ def _selftest() -> int:
         j = translate_title(t)
         print(("OK  " if j else "NG  ") + f"{t}\n    → {j}")
         ng += j is None
+    for t, want in EXPECT.items():
+        j = translate_title(t)
+        print(("OK  " if j == want else "NG  ") + f"(中身) {t} → {j}（期待 {want}）")
+        ng += j != want
     for t in MUST_FAIL:
         j = translate_title(t)
         print(("OK  " if j is None else "NG  ") + f"(訳さない) {t} → {j}")
