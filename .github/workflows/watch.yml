@@ -59,6 +59,10 @@ jobs:
           LINE_USER_ID: ${{ secrets.LINE_USER_ID_SYSTEM || secrets.LINE_USER_ID }}
           FORCE_TEST: ${{ github.event.inputs.force_test == 'true' && '1' || '0' }}
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+          # 辞書で訳せない件名と公式の説明文を Haiku で日本語にする（2026-11-15 利用者承認・無くても通知は日本語で届く）
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          # api_budget（予算の見張り・使用ログ）が Notion を読む
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
         run: |
           if [ -z "$LINE_CHANNEL_ACCESS_TOKEN" ] || [ -z "$LINE_USER_ID" ]; then
             echo "::error::LINE_CHANNEL_ACCESS_TOKEN / LINE_USER_ID が未設定です（通知が飛びません）"

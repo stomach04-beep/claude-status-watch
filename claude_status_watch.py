@@ -26,6 +26,7 @@ from __future__ import annotations
 import csv
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -64,6 +65,13 @@ IMPACT_JA = {"minor": "軽微", "major": "大", "critical": "重大", "none": "�
 RESOLVED_STATUSES = {"resolved", "postmortem"}
 
 JST = timezone(timedelta(hours=9))
+
+# 2026-11-15 追加：辞書で訳せない件名と公式の最新の説明文だけ Haiku で日本語にする（利用者承認済み・API クレジット消費）
+#   呼ぶのは「発生・悪化の知らせを送る回」だけ・1回の実行で1回まで。部品は release_watch の _ask_claude と同じ物を使う
+AI_JOB = "Claude障害の訳"      # 使用ログの「ジョブ」（api_budget の選択肢に無いので「その他」＋備考に入る）
+AI_DAILY_CAP = 10              # 1日に呼ぶ上限（暴走の歯止め。超えた回は訳さず送る＝英語は出さない）
+AI_SRC_CHARS = 400             # 訳に渡す公式の説明文の長さ（state.json にもこの長さで控える）
+AI_OUT_CHARS = 120             # 訳した説明文を通知に載せる長さ
 
 
 # ─────────────────────────────────────────────
@@ -150,7 +158,7 @@ def summarize(data: dict) -> dict:
             "status": status,
             "started": inc.get("started_at") or inc.get("created_at"),
             "components": [c.get("name", "") for c in inc.get("components", [])],
-            "last_update": latest[:200],
+            "last_update": latest[:AI_SRC_CHARS],
         }
 
     degraded = [
@@ -201,7 +209,17 @@ def recovered_name_ja(inc: dict) -> str:
         f"{comps_ja(inc.get('components') or [])}の障害（{fmt_jst(parse_iso(inc.get('started')))} 開始）"
 
 
-def build_messages(prev: dict, cur: dict, now: datetime) -> tuple[list[tuple[str, str]], dict]:
+def incident_change(old: dict | None, inc: dict) -> str | None:
+    """前回の控え(old)と今回(inc)を比べて「発生」「悪化」、変化なしなら None（通知・CSV・AI訳で同じ判定を使う）"""
+    if old is None:
+        return "発生"
+    if IMPACT_RANK.get(inc["impact"], 0) > IMPACT_RANK.get(old.get("impact"), 0):
+        return "悪化"
+    return None
+
+
+def build_messages(prev: dict, cur: dict, now: datetime,
+                   ai_ja: dict | None = None) -> tuple[list[tuple[str, str]], dict]:
     """前回(prev)と今回(cur)を比べ、送るべき LINE 本文（本文, カードの札）のリストと新しい state を返す。
     札は line_flex の level（act=要対応・look=見ておく・info=報告だけ）。本文の語で色が変わらないよう明示する。
 
@@ -214,16 +232,18 @@ def build_messages(prev: dict, cur: dict, now: datetime) -> tuple[list[tuple[str
     cur_incs: dict = cur["incidents"]
 
     # ── 新規に出た障害 ／ 影響度が上がった障害 ──
+    ai_ja = ai_ja or {}
     for iid, inc in cur_incs.items():
-        old = prev_incs.get(iid)
-        if old is None:
-            head = "⚠️ Claude 障害発生"
-        elif IMPACT_RANK.get(inc["impact"], 0) > IMPACT_RANK.get(old.get("impact"), 0):
-            head = "⚠️ Claude 障害が悪化"
-        else:
+        kind = incident_change(prev_incs.get(iid), inc)
+        if kind is None:
             continue  # 変化なし（status が investigating→monitoring になった程度では鳴らさない）
+        head = "⚠️ Claude 障害発生" if kind == "発生" else "⚠️ Claude 障害が悪化"
         # 2026-11-15 日本語だけにする（利用者「英語ではなく日本語で」）。英語の原文は state.json と CSV にだけ残す
+        #   件名は辞書で訳す → 訳せなければ Haiku の訳 → それも無ければ「訳せませんでした」（英語は出さない）
+        ai = ai_ja.get(iid) or {}
         title = status_ja.translate_title(inc["name"])
+        if not title and ai.get("title"):
+            title = f"{ai['title']}（自動翻訳）"
         comp_line = f"対象: {comps_ja(inc['components'])}"
         lines = [f"{head}（影響度: {IMPACT_JA.get(inc['impact'], inc['impact'])}）"]
         if title:
@@ -232,8 +252,10 @@ def build_messages(prev: dict, cur: dict, now: datetime) -> tuple[list[tuple[str
             # 型の分からない件名は半端に訳さない。通知一覧の1文（先頭2行）で中身が分かるよう対象を2行目に置く
             lines += [comp_line, "内容: 公式の件名が見慣れない型のため訳せませんでした（下のページで確認）"]
             log(f"件名を訳せなかった（辞書に足す候補）: {inc['name']}")
-        lines += [f"状況: {status_ja.status_ja(inc['status'])}",
-                  f"開始: {fmt_jst(parse_iso(inc['started']))} 日本時間",
+        lines += [f"状況: {status_ja.status_ja(inc['status'])}"]
+        if ai.get("update"):
+            lines += [f"公式の説明: {ai['update']}（自動翻訳）"]
+        lines += [f"開始: {fmt_jst(parse_iso(inc['started']))} 日本時間",
                   f"※ 詳細 {incident_url(iid)}"]
         msgs.append(("\n".join(lines), "act"))
 
@@ -281,6 +303,113 @@ def build_messages(prev: dict, cur: dict, now: datetime) -> tuple[list[tuple[str
 
 
 # ─────────────────────────────────────────────
+# 3.5) Haiku で訳す（飾り。失敗したら {} を返し、呼び出し側は辞書の訳と「訳せませんでした」で送る）
+#   障害中は Anthropic の API 自体が落ちていることが多い＝失敗は普通に起きる前提で、通知は止めない
+# ─────────────────────────────────────────────
+AI_PROMPT = """Claude（Anthropic の AI）の公式の障害情報を、日本の一般ユーザー（獣医師・プログラミング初心者）向けに日本語へ訳してください。
+下の <incident> ごとに:
+- "title": 件名の訳（30字以内）。<need_title>no</need_title> のときは null
+- "update": 公式の説明文の要点（60字以内）。回避策・影響を受けない機能が書いてあれば必ず残す。説明文が空なら null
+決まり：
+- 製品名・モデル名（Claude、Claude Code、claude.ai、Opus など）と会社名以外は英語を使わない
+- 範囲を絞る語（一部の利用者・特定の端末・断続的に など）を落とさない。原文に無いことは書かない
+- 返事は JSON だけ。形は {"番号": {"title": "...", "update": "..."}, ...}
+
+"""
+
+
+def ai_translate(prev: dict, cur: dict, counter: dict, now: datetime) -> dict:
+    """発生・悪化として知らせる障害について {incident_id: {"title": 訳 or None, "update": 訳 or None}} を返す。
+    counter は state.json に持ち越す1日の呼び出し回数（{"date", "calls"}）。呼べない・失敗なら {}"""
+    prev_incs = prev.get("incidents", {}) or {}
+    targets = []
+    for iid, inc in cur["incidents"].items():
+        if incident_change(prev_incs.get(iid), inc) is None:
+            continue
+        need_title = status_ja.translate_title(inc["name"]) is None
+        if need_title or inc.get("last_update"):
+            targets.append((iid, inc, need_title))
+    if not targets:
+        return {}
+    api_key = _clean_secret(os.environ.get("ANTHROPIC_API_KEY"))
+    if not api_key:
+        log("AI訳: ANTHROPIC_API_KEY が無いので訳さず送ります")
+        return {}
+    today = now.astimezone(JST).strftime("%Y-%m-%d")
+    if counter.get("date") != today:
+        counter["date"], counter["calls"] = today, 0
+    if int(counter.get("calls", 0)) >= AI_DAILY_CAP:
+        log(f"AI訳: 今日はすでに{AI_DAILY_CAP}回呼んだので訳さず送ります（上限）")
+        return {}
+    try:  # 新版の見張りと同じ呼び出し部品・予算の見張りを使う（同じ処理を2か所に書かない）
+        from release_watch.release_watch import _ask_claude, SUMMARY_MODEL, SUMMARY_TIMEOUT_SEC, JA_CHARS
+        import api_budget
+    except Exception as e:  # noqa: BLE001
+        log(f"AI訳: 部品を読めず訳さず送ります（{e}）")
+        return {}
+    decision = None
+    try:
+        decision = api_budget.check_budget(AI_JOB)
+        if decision.mode == "stop":
+            log(f"AI訳: 予算が「停止」なので訳さず送ります（{decision.reason}）")
+            return {}
+    except Exception as e:  # noqa: BLE001  予算判定の不具合で通知を落とさない
+        log(f"AI訳: 予算判定できず続行（{e}）")
+
+    prompt = AI_PROMPT
+    for n, (iid, inc, need_title) in enumerate(targets, 1):
+        prompt += (f'<incident n="{n}">\n<need_title>{"yes" if need_title else "no"}</need_title>\n'
+                   f"<title>{inc['name']}</title>\n<update>{inc.get('last_update', '')}</update>\n</incident>\n")
+    counter["calls"] = int(counter.get("calls", 0)) + 1     # 失敗しても1回と数える（失敗の連打も歯止めの対象）
+    from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutTimeout
+    ex = ThreadPoolExecutor(max_workers=1)
+    try:
+        res = ex.submit(_ask_claude, api_key, prompt).result(timeout=SUMMARY_TIMEOUT_SEC + 15)
+    except FutTimeout:
+        log("AI訳: 時間切れ（訳さず送ります）")
+        res = None
+    finally:
+        ex.shutdown(wait=False)
+    if not res:
+        return {}
+    usage = res.get("usage", {})
+    try:
+        api_budget.record_usage(AI_JOB, SUMMARY_MODEL, 1, int(usage.get("input_tokens", 0)),
+                                int(usage.get("output_tokens", 0)), note=f"{len(targets)}件の障害",
+                                mode=getattr(decision, "mode", None))
+    except Exception as e:  # noqa: BLE001
+        log(f"AI訳: 使用ログに書けず（{e}）")
+    text = "".join(c.get("text", "") for c in res.get("content", []) if c.get("type") == "text")
+    m = re.search(r"\{.*\}", text, re.S)
+    try:
+        data = json.loads(m.group(0)) if m else {}
+    except ValueError:
+        data = {}
+
+    def _ok(s) -> str | None:
+        """日本語を含み、固有名詞以外の英語が残っていない訳だけ使う（「日本語だけ」を守る）"""
+        if not isinstance(s, str):
+            return None
+        s = s.strip()[:AI_OUT_CHARS]
+        if not s or not JA_CHARS.search(s):
+            return None
+        left = status_ja.leftover_english(s)
+        if left:
+            log(f"AI訳: 英語が残るので使わない {left}: {s!r}")
+            return None
+        return s
+
+    out = {}
+    for n, (iid, _inc, need_title) in enumerate(targets, 1):
+        row = data.get(str(n)) or {}
+        if not isinstance(row, dict):
+            continue
+        out[iid] = {"title": _ok(row.get("title")) if need_title else None, "update": _ok(row.get("update"))}
+    log(f"AI訳: {len(targets)}件を依頼・使えた訳 {sum(bool(v['title']) + bool(v['update']) for v in out.values())}個")
+    return out
+
+
+# ─────────────────────────────────────────────
 # 4) 履歴 CSV に残す
 # ─────────────────────────────────────────────
 def append_log(rows: list[list[str]]) -> None:
@@ -302,12 +431,8 @@ def log_rows(prev: dict, new_state: dict, now: datetime) -> list[list[str]]:
     prev_incs = prev.get("incidents", {}) or {}
     ts = now.astimezone(JST).strftime("%Y-%m-%d %H:%M")
     for iid, inc in new_state["incidents"].items():
-        old = prev_incs.get(iid)
-        if old is None:
-            kind = "発生"
-        elif IMPACT_RANK.get(inc["impact"], 0) > IMPACT_RANK.get(old.get("impact"), 0):
-            kind = "悪化"
-        else:
+        kind = incident_change(prev_incs.get(iid), inc)
+        if kind is None:
             continue
         rows.append([ts, kind, iid, inc["name"], inc["impact"], "|".join(inc["components"]),
                      fmt_jst(parse_iso(inc["started"])), ""])
@@ -395,7 +520,10 @@ def main() -> int:
     cur = summarize(data)
     log(f"全体status={data.get('status', {}).get('description')} / 未解決障害={len(cur['incidents'])}件 / 不調部品={cur['degraded'] or 'なし'}")
 
-    msgs, new_state = build_messages(prev, cur, now)
+    counter = dict(prev.get("ai_ja") or {})                # 1日の AI 訳の回数（state.json に持ち越す）
+    ai_ja = ai_translate(prev, cur, counter, now)
+    msgs, new_state = build_messages(prev, cur, now, ai_ja)
+    new_state["ai_ja"] = counter
     if prev.get("fetch_fail", 0) >= FETCH_FAIL_NOTIFY_AT:
         msgs.insert(0, (f"ℹ️ Claude の公式の状況ページに再び届くようになりました（{fmt_jst(now)} 日本時間）", "info"))
 

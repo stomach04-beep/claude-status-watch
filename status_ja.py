@@ -27,7 +27,7 @@ PROPER_WORDS = {
     "Platform", "Developer", "Desktop", "iOS", "Android", "Windows", "macOS", "Mac", "Chrome",
     "Apple", "Google", "Microsoft", "Slack", "GitHub", "Gmail", "Drive", "Excel", "Word",
     "PowerPoint", "Outlook", "Teams", "Bedrock", "Vertex", "AWS", "MCP", "SSO", "Max", "Pro",
-    "Team", "Enterprise", "Web",
+    "Team", "Enterprise", "Web", "Ultra", "Free",
 }
 # ドメイン名（小文字の英字だが固有名）
 PROPER_DOMAINS = ("platform.claude.com", "api.anthropic.com", "console.anthropic.com",
