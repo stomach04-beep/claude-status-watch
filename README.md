@@ -4,28 +4,34 @@ Claude（Anthropic）公式ステータスページ <https://status.claude.com> 
 障害の **発生・悪化・復旧** のときだけ LINE（AI秘書）へ通知する GitHub Actions ジョブ。
 
 - 実行場所: GitHub Actions（cron `*/20 * * * *`）。PCが寝ていても動く
-- AI呼び出しなし・ログイン不要・依存パッケージなし（Python 標準ライブラリのみ）
+- 依存パッケージなし（Python 標準ライブラリのみ）。AI は辞書で訳せない件名の訳だけに使う
 - 変化が無い回は黙る（通知疲れ防止）。状態は `state.json` に持ち越す
 - 履歴は `data/incident_log.csv` に1行ずつ残る（発生／悪化／復旧、所要時間つき）
 
-## 通知の例
+## 通知の例（2026-11-15 から日本語だけ）
 
 ```
-⚠️ Claude 障害発生（影響度: 重大）
-件名: Service disruption on Claude services
-対象: claude.ai、Claude API (api.anthropic.com)、Claude Code
-開始: 08/17 06:58 JST
-最新: We are investigating elevated error rates...
-https://status.claude.com
+⚠️ Claude 障害発生（影響度: 大）
+内容: 一部の利用者がApple で新規登録ができない（iOS アプリ）
+対象: claude.ai（アプリ・Web 版）
+状況: 調査中
+公式の説明: Google かメールでの登録は使えます。（自動翻訳）
+開始: 11/15 11:40 日本時間
+※ 詳細 https://status.claude.com/incidents/<id>
 ```
 
 ```
 ✅ Claude 復旧
-件名: Service disruption on Claude services
-発生: 08/17 06:58 JST → 復旧確認: 08/17 07:40 JST
+内容: 複数のモデルでエラーが増加
+発生: 08/17 06:58 → 復旧確認: 08/17 07:40（日本時間）
 所要: 約42分
-https://status.claude.com
+※ 詳細 https://status.claude.com
 ```
+
+- 件名・部品名は `status_ja.py` の辞書で訳す（AI 不使用）。`python status_ja.py --selftest` で過去の実件名を全部訳せるか確かめる
+- 辞書で訳せない件名と公式の説明文だけ Haiku 5.5 で訳す（1日10回まで・api_budget で停止なら呼ばない・英語が残る訳は使わない）。
+  Haiku が使えない回も英語は出さず「訳せませんでした」と対象・個別ページで知らせる
+- 英語の原文は `state.json` と `data/incident_log.csv` にだけ残る。訳せなかった件名は Actions のログに「辞書に足す候補」と出る
 
 ## 手動実行（Actions タブ → Run workflow）
 
