@@ -18,6 +18,8 @@ claude_status_watch.py ― Claude（Anthropic）公式ステータスページ�
   LINE_CHANNEL_ACCESS_TOKEN / LINE_USER_ID … 通知先（無ければ標準出力に本文を出すだけ）
   DRY_RUN=1                                … 送信せず本文を標準出力（動作確認用）
   FORCE_TEST=1                             … 状態に関係なくテスト文面を1通送る（配線確認用）
+  PREVIEW=1                                … 今の未解決の障害を新しく出たとみなして送る（控えは変えない）
+  ANTHROPIC_API_KEY                        … 辞書で訳せない件名・公式の説明文を Haiku で訳す（無ければ訳さない）
 
 【安全境界】読むのは公開ステータスページだけ。書くのは state.json と CSV だけ。
 """
@@ -521,6 +523,14 @@ def main() -> int:
     log(f"全体status={data.get('status', {}).get('description')} / 未解決障害={len(cur['incidents'])}件 / 不調部品={cur['degraded'] or 'なし'}")
 
     counter = dict(prev.get("ai_ja") or {})                # 1日の AI 訳の回数（state.json に持ち越す）
+    if os.environ.get("PREVIEW") == "1":
+        # 試運転：今の未解決の障害を「新しく出た」とみなして文面と訳を確かめる。控え・CSV は変えない
+        ai_ja = ai_translate({}, cur, counter, now)
+        msgs, _ = build_messages({}, cur, now, ai_ja)
+        msgs = [("🔧 試運転（実際の新しい障害ではありません）\n" + m, "info") for m, _lv in msgs] \
+            or [("🔧 試運転：いま未解決の障害はありません", "info")]
+        ok = all([send_line(m, lv) for m, lv in msgs])
+        return 0 if ok or os.environ.get("DRY_RUN") == "1" else 1
     ai_ja = ai_translate(prev, cur, counter, now)
     msgs, new_state = build_messages(prev, cur, now, ai_ja)
     new_state["ai_ja"] = counter

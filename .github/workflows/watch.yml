@@ -2,7 +2,7 @@ name: "Claude Status Watch (20分おき・障害発生/復旧をLINE通知)"
 
 # Claude（Anthropic）公式ステータスページを20分おきに読み、
 # 障害の「発生」「悪化」「復旧」のときだけ LINE に知らせる。
-# AI呼び出しなし・ログイン不要。状態ファイル(state.json)と履歴CSVは
+# 件名は辞書で日本語に。訳せない件名と公式の説明だけ Haiku で訳す（2026-11-15）。状態ファイル(state.json)と履歴CSVは
 # 変化があったときだけこのリポジトリにコミットして持ち越す。
 #
 # 【安全境界】読むのは公開ステータスページだけ。書くのは自分のリポジトリの
@@ -20,6 +20,10 @@ on:
         default: "false"
       dry_run:
         description: "送信せず本文だけログに出す: true/false"
+        required: false
+        default: "false"
+      preview:
+        description: "試運転：今の未解決の障害を『新しく出た』とみなして知らせる（控えは変えない・Haiku の訳も試す）: true/false"
         required: false
         default: "false"
 
@@ -59,6 +63,7 @@ jobs:
           LINE_USER_ID: ${{ secrets.LINE_USER_ID_SYSTEM || secrets.LINE_USER_ID }}
           FORCE_TEST: ${{ github.event.inputs.force_test == 'true' && '1' || '0' }}
           DRY_RUN: ${{ github.event.inputs.dry_run == 'true' && '1' || '0' }}
+          PREVIEW: ${{ github.event.inputs.preview == 'true' && '1' || '0' }}
           # 辞書で訳せない件名と公式の説明文を Haiku で日本語にする（2026-11-15 利用者承認・無くても通知は日本語で届く）
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           # api_budget（予算の見張り・使用ログ）が Notion を読む
