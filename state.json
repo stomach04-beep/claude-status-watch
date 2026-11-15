@@ -10,12 +10,13 @@
       "components": [
         "claude.ai"
       ],
-      "last_update": "We are continuing to investigate an issue with Sign in with Apple on the Claude iOS app, which is mainly affecting new accounts. New users can sign up with Google or email instead. We will provide ano"
+      "last_update": "We are continuing to investigate an issue with Sign in with Apple on the Claude iOS app, which is mainly affecting new accounts. New users can sign up with Google or email instead. We will provide another update as soon as possible."
     }
   },
   "degraded": [
     "claude.ai"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-11-14T20:46:34.297700+00:00"
+  "checked_at": "2026-11-15T00:45:16.618399+00:00",
+  "ai_ja": {}
 }
