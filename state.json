@@ -2,6 +2,16 @@
   "is_down": true,
   "since": "2026-11-14T07:11:36.111000+00:00",
   "incidents": {
+    "b5cq662qf2wm": {
+      "name": "Claude unable to join meetings",
+      "impact": "major",
+      "status": "investigating",
+      "started": "2026-11-16T15:10:15.160Z",
+      "components": [
+        "claude.ai"
+      ],
+      "last_update": "We are investigating reports of degraded performance affecting claude.ai. We will provide an update as soon as possible."
+    },
     "ct4c2pwf2xpj": {
       "name": "Some users unable to sign up with Apple on the Claude iOS app",
       "impact": "major",
@@ -17,6 +27,9 @@
     "claude.ai"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-11-16T06:07:25.447936+00:00",
-  "ai_ja": {}
+  "checked_at": "2026-11-16T16:00:15.639075+00:00",
+  "ai_ja": {
+    "date": "2026-11-17",
+    "calls": 1
+  }
 }
