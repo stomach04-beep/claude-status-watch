@@ -5,19 +5,19 @@
     "b5cq662qf2wm": {
       "name": "Claude unable to join meetings",
       "impact": "major",
-      "status": "investigating",
+      "status": "identified",
       "started": "2026-11-16T15:10:15.160Z",
       "components": [
         "claude.ai"
       ],
-      "last_update": "Claude may still be unable to join some calls in Claude Meetings (beta), and Auto-join remains paused. Calls already in progress and other Claude features are not affected. We expect this to take some time to fully resolve and will post an update when the status changes."
+      "last_update": "Claude Meetings (beta) saw higher than expected demand today, and Claude was unable to join many calls. We have put mitigations in place and are continuing to monitor and improve join reliability.\n\nClaude Meetings is now re-enabled for all Enterprise customers, though Claude may take a little longer than usual to join. Adding Claude to new calls and Auto-join remain paused for Team customers. We w"
     }
   },
   "degraded": [
     "claude.ai"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-11-17T00:16:46.639856+00:00",
+  "checked_at": "2026-11-17T08:06:43.341014+00:00",
   "ai_ja": {
     "date": "2026-11-17",
     "calls": 1
