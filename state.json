@@ -10,14 +10,14 @@
       "components": [
         "claude.ai"
       ],
-      "last_update": "Claude Meetings (beta) saw higher than expected demand today, and Claude was unable to join many calls. We have put mitigations in place and are continuing to monitor and improve join reliability.\n\nClaude Meetings is now re-enabled for all Enterprise customers, though Claude may take a little longer than usual to join. Adding Claude to new calls and Auto-join remain paused for Team customers. We w"
+      "last_update": "Claude Meetings (beta) is joining calls more reliably, and we are monitoring it. It remains enabled for all Enterprise customers. Team customers can again add Claude to new calls manually, and Auto-join is being restored gradually for Team customers."
     }
   },
   "degraded": [
     "claude.ai"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-11-17T17:39:38.195904+00:00",
+  "checked_at": "2026-11-17T23:57:36.498216+00:00",
   "ai_ja": {
     "date": "2026-11-17",
     "calls": 1
