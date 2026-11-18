@@ -4,7 +4,7 @@
   "incidents": {
     "b5cq662qf2wm": {
       "name": "Claude unable to join meetings",
-      "impact": "major",
+      "impact": "minor",
       "status": "identified",
       "started": "2026-11-16T15:10:15.160Z",
       "components": [
@@ -17,7 +17,7 @@
     "claude.ai"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-11-17T23:57:36.498216+00:00",
+  "checked_at": "2026-11-18T06:43:42.112115+00:00",
   "ai_ja": {
     "date": "2026-11-17",
     "calls": 1
