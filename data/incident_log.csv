@@ -36,3 +36,4 @@
 2026-11-17 01:00,発生,b5cq662qf2wm,Claude unable to join meetings,major,claude.ai,11/17 00:10,
 2026-11-19 13:01,復旧,b5cq662qf2wm,Claude unable to join meetings,,,11/14 16:11,116時間49分
 2026-11-24 16:05,発生,3vbyqgnswwxq,Claude for Microsoft 365 add-in missing for some users,minor,claude.ai,11/24 09:10,
+2026-11-25 03:56,悪化,3vbyqgnswwxq,Claude for Microsoft 365 add-in missing for some users,major,claude.ai,11/24 09:10,

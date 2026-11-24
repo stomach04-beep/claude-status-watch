@@ -4,7 +4,7 @@
   "incidents": {
     "3vbyqgnswwxq": {
       "name": "Claude for Microsoft 365 add-in missing for some users",
-      "impact": "minor",
+      "impact": "major",
       "status": "investigating",
       "started": "2026-11-24T00:10:40.012Z",
       "components": [
@@ -17,9 +17,9 @@
     "claude.ai"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-11-24T07:05:00.864963+00:00",
+  "checked_at": "2026-11-24T18:56:28.170435+00:00",
   "ai_ja": {
-    "date": "2026-11-24",
+    "date": "2026-11-25",
     "calls": 1
   }
 }
