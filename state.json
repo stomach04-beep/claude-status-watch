@@ -5,19 +5,19 @@
     "3vbyqgnswwxq": {
       "name": "Claude for Microsoft 365 add-in missing for some users",
       "impact": "major",
-      "status": "identified",
+      "status": "monitoring",
       "started": "2026-11-24T00:10:40.012Z",
       "components": [
         "claude.ai"
       ],
-      "last_update": "We have identified an issue with an upstream provider that is causing the Claude add-in to disappear from Excel, Word, and PowerPoint on Mac for users signed in to Microsoft Office with a personal Microsoft account. We are in contact with them. In the meantime, we recommend using the web versions of Excel, Word, and PowerPoint at office.com, where Claude remains available for many users. We will p"
+      "last_update": "Our upstream provider has applied a mitigation for the issue that caused the Claude add-in to disappear from Excel, Word, and PowerPoint on Mac for users signed in to Microsoft Office with a personal Microsoft account, and we are monitoring for recovery. If Claude is still missing, try adding it again from Microsoft Marketplace, or use the web versions of Excel, Word, and PowerPoint at office.com,"
     }
   },
   "degraded": [
     "claude.ai"
   ],
   "fetch_fail": 0,
-  "checked_at": "2026-11-27T14:16:55.656057+00:00",
+  "checked_at": "2026-11-27T22:45:59.966757+00:00",
   "ai_ja": {
     "date": "2026-11-25",
     "calls": 1
